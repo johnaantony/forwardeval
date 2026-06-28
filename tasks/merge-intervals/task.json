@@ -1,0 +1,11 @@
+{
+  "id": "merge-intervals",
+  "title": "Merge overlapping intervals",
+  "language": "python",
+  "category": "algo",
+  "difficulty": "hard",
+  "prompt": "Implement `merge(intervals)` in solution_stub.py. Each interval is a [start, end] pair. Merge all overlapping or touching intervals and return the result as a list of [start, end] lists sorted by start. Intervals that merely touch (e.g. [1,4] and [4,5]) must be merged into [1,5]. The current version assumes the input is already sorted and merges incorrectly otherwise.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

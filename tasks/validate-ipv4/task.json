@@ -1,0 +1,11 @@
+{
+  "id": "validate-ipv4",
+  "title": "Strictly validate an IPv4 address",
+  "language": "python",
+  "category": "edge_cases",
+  "difficulty": "medium",
+  "prompt": "Implement `is_valid_ipv4(s)` in solution_stub.py. Return True iff `s` is a valid dotted-quad IPv4 address: exactly four octets separated by dots, each a base-10 integer from 0 to 255, with NO leading zeros (so '0' is valid but '01' is not). The current version checks the 0-255 range but wrongly accepts leading zeros.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

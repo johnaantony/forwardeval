@@ -1,0 +1,11 @@
+{
+  "id": "dedupe-preserve-order",
+  "title": "Deduplicate a list while preserving order",
+  "language": "python",
+  "category": "refactor",
+  "difficulty": "easy",
+  "prompt": "Refactor `dedupe(items)` in solution_stub.py so it removes duplicates while PRESERVING the order of first appearance. The current implementation uses a set and loses order. Keep the first occurrence of each value and drop later duplicates.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

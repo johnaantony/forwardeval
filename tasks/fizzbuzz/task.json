@@ -1,0 +1,11 @@
+{
+  "id": "fizzbuzz",
+  "title": "Implement classic FizzBuzz",
+  "language": "python",
+  "category": "feature_add",
+  "difficulty": "easy",
+  "prompt": "Implement `fizzbuzz(n)` in solution_stub.py. It returns a list for the numbers 1..n (inclusive): use 'Fizz' for multiples of 3, 'Buzz' for multiples of 5, 'FizzBuzz' for multiples of 15, and the number as a string otherwise. Every element of the returned list must be a string.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

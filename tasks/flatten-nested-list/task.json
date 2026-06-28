@@ -1,0 +1,11 @@
+{
+  "id": "flatten-nested-list",
+  "title": "Flatten an arbitrarily nested list",
+  "language": "python",
+  "category": "feature_add",
+  "difficulty": "medium",
+  "prompt": "Implement `flatten(lst)` in solution_stub.py so it flattens an arbitrarily nested list into a single flat list, preserving left-to-right order. The current version only flattens one level deep. Strings must be treated as atomic values (do NOT split them into characters). Only Python lists count as nestable.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

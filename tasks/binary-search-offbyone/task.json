@@ -1,0 +1,11 @@
+{
+  "id": "binary-search-offbyone",
+  "title": "Fix the off-by-one in binary search",
+  "language": "python",
+  "category": "bug_fix",
+  "difficulty": "easy",
+  "prompt": "`search(arr, target)` in solution_stub.py is supposed to return the index of `target` in the sorted list `arr`, or -1 if absent. It has an off-by-one bug and sometimes fails to find elements (especially at the end of the array). Fix it so it returns the correct index for any sorted input.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

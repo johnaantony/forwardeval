@@ -1,0 +1,11 @@
+{
+  "id": "lru-cache",
+  "title": "Fix the eviction policy of an LRU cache",
+  "language": "python",
+  "category": "refactor",
+  "difficulty": "hard",
+  "prompt": "The `LRUCache` class in solution_stub.py is meant to be a least-recently-used cache. Constructor LRUCache(capacity). `get(key)` returns the value or -1 if absent. `put(key, value)` inserts/updates. When inserting beyond capacity, the LEAST recently used entry must be evicted. Both get and put count as a use, and updating an existing key also refreshes its recency. The current version evicts in insertion order (FIFO) and never refreshes recency on get or update. Fix it to be a correct LRU.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

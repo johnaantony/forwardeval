@@ -1,0 +1,11 @@
+{
+  "id": "token-bucket-rate-limiter",
+  "title": "Implement a token-bucket rate limiter",
+  "language": "python",
+  "category": "feature_add",
+  "difficulty": "hard",
+  "prompt": "Implement the `RateLimiter` class in solution_stub.py using the token-bucket algorithm. Constructor: RateLimiter(capacity, refill_rate) where capacity is the max number of tokens and refill_rate is tokens added per second. The bucket starts full. Method `allow(timestamp)` is called with a monotonically non-decreasing timestamp in seconds: it refills tokens based on the time elapsed since the previous call (capped at capacity), then consumes one token and returns True if at least one token is available, otherwise returns False without consuming. The current version never refills over time.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

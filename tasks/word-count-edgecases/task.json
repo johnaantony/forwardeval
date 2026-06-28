@@ -1,0 +1,11 @@
+{
+  "id": "word-count-edgecases",
+  "title": "Count words, case-insensitive, ignoring punctuation",
+  "language": "python",
+  "category": "edge_cases",
+  "difficulty": "medium",
+  "prompt": "Implement `word_count(text)` in solution_stub.py. Return a dict mapping each word to its number of occurrences. Counting is case-insensitive (lowercase the words). Split on whitespace, then strip leading/trailing punctuation from each token. Punctuation INSIDE a word (like the apostrophe in don't) is kept. Empty tokens are ignored. The current version counts raw whitespace-split tokens, so punctuation and casing break the counts.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

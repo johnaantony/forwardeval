@@ -1,0 +1,11 @@
+{
+  "id": "run-length-encoding",
+  "title": "Run-length encode a string",
+  "language": "python",
+  "category": "algo",
+  "difficulty": "medium",
+  "prompt": "Implement `encode(s)` in solution_stub.py: run-length encode a string by replacing each maximal run of one character with the character followed by the run length, e.g. 'aaabbc' -> 'a3b2c1'. The current version has a bug where it drops the final run. An empty string encodes to ''.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "temperature-convert",
+  "title": "Convert between Celsius, Fahrenheit, and Kelvin",
+  "language": "python",
+  "category": "feature_add",
+  "difficulty": "easy",
+  "prompt": "Implement `convert(value, from_unit, to_unit)` in solution_stub.py. Units are the strings 'C', 'F', and 'K'. Convert `value` from `from_unit` to `to_unit` and return the result rounded to 2 decimal places. Converting to the same unit returns the value unchanged (rounded to 2 dp).",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

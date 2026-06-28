@@ -1,0 +1,11 @@
+{
+  "id": "balanced-parens",
+  "title": "Check balanced brackets",
+  "language": "python",
+  "category": "algo",
+  "difficulty": "medium",
+  "prompt": "Implement `is_balanced(s)` in solution_stub.py. Return True iff every '(', '[' and '{' is closed by the matching ')', ']' or '}' in the correct order. Non-bracket characters are ignored. The current version only counts openers vs closers, so it wrongly accepts mismatched nesting like '([)]'.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

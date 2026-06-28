@@ -1,0 +1,11 @@
+{
+  "id": "snake-to-camel",
+  "title": "Convert snake_case to camelCase",
+  "language": "python",
+  "category": "edge_cases",
+  "difficulty": "easy",
+  "prompt": "Implement `to_camel(s)` in solution_stub.py. Convert a snake_case string to camelCase: 'user_id' -> 'userId', 'first_name' -> 'firstName'. The first segment keeps its original casing; each later segment has its first character upper-cased and the rest left unchanged.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

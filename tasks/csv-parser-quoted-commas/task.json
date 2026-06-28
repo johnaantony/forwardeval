@@ -1,0 +1,11 @@
+{
+  "id": "csv-parser-quoted-commas",
+  "title": "Fix CSV parser to handle quoted commas",
+  "language": "python",
+  "category": "bug_fix",
+  "difficulty": "medium",
+  "prompt": "`parse_csv(line)` in solution_stub.py splits a single CSV line into a list of fields, but it naively splits on every comma. Fix it so that a field wrapped in double quotes may contain commas that are NOT treated as separators, e.g. parse_csv('a,\"b,c\",d') -> ['a', 'b,c', 'd']. The surrounding double quotes must be removed from the returned field. You do not need to support escaped quotes inside a field.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}

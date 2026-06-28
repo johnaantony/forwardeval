@@ -1,0 +1,11 @@
+{
+  "id": "roman-numerals",
+  "title": "Convert integers to Roman numerals",
+  "language": "python",
+  "category": "algo",
+  "difficulty": "medium",
+  "prompt": "Implement `int_to_roman(n)` in solution_stub.py for integers 1..3999. The current version only does additive numerals, so it returns 'IIII' for 4. Handle the subtractive forms correctly: 4 -> 'IV', 9 -> 'IX', 40 -> 'XL', 90 -> 'XC', 400 -> 'CD', 900 -> 'CM'.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"]
+}
