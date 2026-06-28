@@ -1,0 +1,32 @@
+# Secrets: NEVER commit
+.env
+.env.local
+*.key
+
+# Dependencies
+node_modules/
+harness/node_modules/
+dashboard/node_modules/
+
+# Build output
+harness/dist/
+dashboard/dist/
+dashboard/.vite/
+
+# Sandbox scratch (created at runtime)
+.sandbox/
+harness/.sandbox/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# NOTE: /results/*.json IS committed on purpose. The dashboard reads it,
+# and a committed sample run lets the deployed dashboard render with data.
