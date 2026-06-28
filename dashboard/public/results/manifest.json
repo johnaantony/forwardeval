@@ -1,0 +1,22 @@
+[
+  {
+    "runId": "2026-06-20-sonnet-baseline",
+    "file": "2026-06-20-sonnet-baseline.json",
+    "label": "sonnet-baseline",
+    "model": "claude-sonnet-4-6",
+    "startedAt": "2026-06-20T17:00:00.000Z",
+    "passAt1Rate": 0.8,
+    "totalTasks": 15,
+    "demo": true
+  },
+  {
+    "runId": "2026-06-20-sonnet-v2-prompt",
+    "file": "2026-06-20-sonnet-v2-prompt.json",
+    "label": "sonnet-v2-prompt",
+    "model": "claude-sonnet-4-6",
+    "startedAt": "2026-06-20T17:00:00.000Z",
+    "passAt1Rate": 0.9333,
+    "totalTasks": 15,
+    "demo": true
+  }
+]
