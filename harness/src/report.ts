@@ -7,10 +7,76 @@ import type {
   TaskResult,
   RunConfig,
   CategoryRollup,
+  TestAuthorshipSummary,
+  TokenUsage,
 } from "./types.js";
 
+/**
+ * Roll up the human-vs-LLM test authorship comparison across tasks.
+ * Returns null when no comparison was run (testMode === "human").
+ */
+function summarizeTestAuthorship(
+  tasks: TaskResult[],
+  config: RunConfig,
+  testGenTokens: TokenUsage,
+): TestAuthorshipSummary | null {
+  if (config.testMode === "human") return null;
+
+  let comparedTasks = 0;
+  let agree = 0;
+  let llmMissed = 0;
+  let llmStricter = 0;
+  let humanTestCount = 0;
+  let llmTestCount = 0;
+  let humanPassAt1 = 0;
+  let llmPassAt1 = 0;
+
+  for (const t of tasks) {
+    // Use attempt 0 (pass@1) where available, else the representative rollup.
+    const ta = t.attempts[0]?.testAuthorship ?? t.testAuthorship;
+    if (!ta || !ta.human || !ta.llm) continue;
+    comparedTasks += 1;
+    humanTestCount += ta.human.output.total;
+    llmTestCount += ta.llm.output.total;
+    if (ta.human.verdict) humanPassAt1 += 1;
+    if (ta.llm.verdict) llmPassAt1 += 1;
+    switch (ta.agreement) {
+      case "agree_pass":
+      case "agree_fail":
+        agree += 1;
+        break;
+      case "llm_missed":
+        llmMissed += 1;
+        break;
+      case "llm_stricter":
+        llmStricter += 1;
+        break;
+    }
+  }
+
+  return {
+    mode: config.testMode,
+    verdictSource: config.verdictSource,
+    comparedTasks,
+    agree,
+    agreementRate: comparedTasks ? round4(agree / comparedTasks) : 0,
+    llmMissed,
+    llmStricter,
+    humanTestCount,
+    llmTestCount,
+    humanPassAt1,
+    llmPassAt1,
+    testGenTokens,
+    testGenCost: costFor(testGenTokens, config.pricing),
+  };
+}
+
 /** Compute the run-level summary (incl. the Token-ROI block) from task results. */
-export function summarize(tasks: TaskResult[], config: RunConfig): RunSummary {
+export function summarize(
+  tasks: TaskResult[],
+  config: RunConfig,
+  testGenTokens: TokenUsage = emptyTokens(),
+): RunSummary {
   const total = tasks.length;
   const passedAt1 = tasks.filter((t) => t.passAt1).length;
   const passedAtK = tasks.filter((t) => t.passAtK).length;
@@ -70,6 +136,7 @@ export function summarize(tasks: TaskResult[], config: RunConfig): RunSummary {
     // wastedCost is a {total}-only proxy; treat input/output split as output-ish.
     wastedCost: wastedCost,
     totalWallClockMs,
+    testAuthorship: summarizeTestAuthorship(tasks, config, testGenTokens),
   };
 }
 

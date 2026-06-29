@@ -50,6 +50,42 @@ export function Overview({ run }: { run: RunResult }) {
         <Kpi label="Date" value={<span className="text-base">{run.startedAt.slice(0, 10)}</span>} sub={`harness v${run.config.harnessVersion}`} />
       </div>
 
+      {/* Test authorship callout (only when a human-vs-LLM comparison was run) */}
+      {s.testAuthorship && (
+        <Card
+          className={`p-4 ${
+            s.testAuthorship.llmMissed > 0 ? "border-fail/30 bg-fail/5" : ""
+          }`}
+        >
+          <SectionTitle hint="Same agent solution, scored by the expert's suite and by an LLM-authored suite. See the Test authorship tab for per-task drilldowns.">
+            🧪 Test authorship: human expert vs LLM
+          </SectionTitle>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <RoiStat
+              label="LLM tests missed"
+              value={String(s.testAuthorship.llmMissed)}
+              hint="LLM suite passed, expert caught the bug"
+              tone={s.testAuthorship.llmMissed > 0 ? "fail" : undefined}
+            />
+            <RoiStat
+              label="Agreement"
+              value={pct(s.testAuthorship.agreementRate)}
+              hint={`${s.testAuthorship.agree}/${s.testAuthorship.comparedTasks} tasks agree`}
+            />
+            <RoiStat
+              label="Pass@1 expert / LLM"
+              value={`${s.testAuthorship.humanPassAt1} / ${s.testAuthorship.llmPassAt1}`}
+              hint="verdict differs when suites differ"
+            />
+            <RoiStat
+              label="Test cases expert / LLM"
+              value={`${s.testAuthorship.humanTestCount} / ${s.testAuthorship.llmTestCount}`}
+              hint={`verdict from: ${s.testAuthorship.verdictSource}`}
+            />
+          </div>
+        </Card>
+      )}
+
       {/* Token ROI panel */}
       <Card className="p-4">
         <SectionTitle hint="Accuracy per token. Most coding benchmarks report accuracy alone; ROI asks 'better at what price?'">

@@ -1,6 +1,13 @@
 import type { Pricing } from "./types.js";
 
-export const HARNESS_VERSION = "0.1.0";
+export const HARNESS_VERSION = "0.2.0";
+
+/**
+ * Test authorship mode. "human" preserves the original behavior (expert suite is
+ * the only verdict). "llm" and "both" additionally author an LLM suite and
+ * record the human-vs-LLM comparison; see RunConfig.testMode.
+ */
+export const DEFAULT_TEST_MODE = "human" as const;
 
 /**
  * Default Claude model for the agent. Overridable with --model so runs can
