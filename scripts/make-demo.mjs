@@ -35,6 +35,163 @@ const RESULTS_DIR = join(ROOT, "results");
 
 const PRICING = { inputPerMTok: 3.0, outputPerMTok: 15.0 }; // sonnet-class
 
+const LLM_TEST_FILE = "test_suite_llm.py";
+
+/**
+ * Demo LLM-authored test suites (for the --tests both comparison view).
+ *
+ * HONESTY NOTE: as with the rest of the demo, these suites are ACTUALLY RUN
+ * against the candidate code in the sandbox, so the pass/fail and the agreement
+ * are real. What is simulated is only the PROVENANCE label ("an LLM wrote this"):
+ * here a human hand-wrote plausible LLM-style suites that cover the obvious cases
+ * and, on two tasks, miss an edge case the expert suite caught. A live
+ * `npm run eval -- --tests both` replaces these with suites a model actually
+ * authored and records the real test-gen token cost.
+ */
+const DEMO_LLM_SUITES = {
+  fizzbuzz: `import unittest
+from solution_stub import fizzbuzz
+
+
+class TestFizzBuzz(unittest.TestCase):
+    def test_small(self):
+        self.assertEqual(fizzbuzz(5), ["1", "2", "Fizz", "4", "Buzz"])
+
+    def test_fizzbuzz_at_15(self):
+        self.assertEqual(fizzbuzz(15)[14], "FizzBuzz")
+
+    def test_all_strings(self):
+        self.assertTrue(all(isinstance(x, str) for x in fizzbuzz(20)))
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "balanced-parens": `import unittest
+from solution_stub import is_balanced
+
+
+class TestBalanced(unittest.TestCase):
+    def test_simple(self):
+        self.assertTrue(is_balanced("()"))
+        self.assertTrue(is_balanced("([]{})"))
+
+    def test_mismatched_order(self):
+        self.assertFalse(is_balanced("([)]"))
+
+    def test_unclosed(self):
+        self.assertFalse(is_balanced("((("))
+
+    def test_ignores_non_brackets(self):
+        self.assertTrue(is_balanced("a(b)c"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "roman-numerals": `import unittest
+from solution_stub import int_to_roman
+
+
+class TestRoman(unittest.TestCase):
+    def test_basic_subtractive(self):
+        self.assertEqual(int_to_roman(1), "I")
+        self.assertEqual(int_to_roman(4), "IV")
+        self.assertEqual(int_to_roman(9), "IX")
+
+    def test_tens(self):
+        self.assertEqual(int_to_roman(40), "XL")
+        self.assertEqual(int_to_roman(90), "XC")
+
+    def test_compound(self):
+        self.assertEqual(int_to_roman(1994), "MCMXCIV")
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // MISSES the punctuation/apostrophe edge cases the expert suite catches.
+  "word-count-edgecases": `import unittest
+from solution_stub import word_count
+
+
+class TestWordCount(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(word_count("the cat sat"), {"the": 1, "cat": 1, "sat": 1})
+
+    def test_case_insensitive(self):
+        self.assertEqual(word_count("The the THE"), {"the": 3})
+
+    def test_repeats(self):
+        self.assertEqual(word_count("a a b"), {"a": 2, "b": 1})
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // MISSES time-based refill: only checks same-timestamp exhaustion.
+  "token-bucket-rate-limiter": `import unittest
+from solution_stub import RateLimiter
+
+
+class TestRateLimiter(unittest.TestCase):
+    def test_starts_full(self):
+        rl = RateLimiter(2, 1)
+        self.assertTrue(rl.allow(0))
+        self.assertTrue(rl.allow(0))
+
+    def test_blocks_when_empty(self):
+        rl = RateLimiter(2, 1)
+        rl.allow(0)
+        rl.allow(0)
+        self.assertFalse(rl.allow(0))
+
+    def test_single_capacity(self):
+        rl = RateLimiter(1, 1)
+        self.assertTrue(rl.allow(0))
+        self.assertFalse(rl.allow(0))
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // This one DOES catch the update-recency bug, so it agrees with the expert.
+  "lru-cache": `import unittest
+from solution_stub import LRUCache
+
+
+class TestLRU(unittest.TestCase):
+    def test_basic_eviction(self):
+        c = LRUCache(2)
+        c.put(1, 1)
+        c.put(2, 2)
+        self.assertEqual(c.get(1), 1)
+        c.put(3, 3)
+        self.assertEqual(c.get(2), -1)
+        self.assertEqual(c.get(3), 3)
+
+    def test_update_refreshes_recency(self):
+        c = LRUCache(2)
+        c.put(1, 1)
+        c.put(2, 2)
+        c.put(1, 10)
+        c.put(3, 3)
+        self.assertEqual(c.get(1), 10)
+        self.assertEqual(c.get(2), -1)
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+};
+
+function agreementOf(humanPass, llmPass) {
+  if (humanPass && llmPass) return "agree_pass";
+  if (!humanPass && !llmPass) return "agree_fail";
+  if (llmPass && !humanPass) return "llm_missed";
+  return "llm_stricter";
+}
+
 // ---- helpers ---------------------------------------------------------------
 
 function parseCounts(stdout, stderr, exitCode) {
@@ -81,10 +238,73 @@ function runCandidate(taskDir, spec, entryContents) {
   }
 }
 
+/** Run an LLM-authored suite (real execution) against the candidate code. */
+function runLlmSuite(taskDir, spec, entryContents, llmTestCode) {
+  const work = mkdtempSync(join(tmpdir(), "fe-demo-llm-"));
+  try {
+    cpSync(taskDir, work, { recursive: true });
+    writeFileSync(join(work, spec.entry_file), entryContents);
+    writeFileSync(join(work, LLM_TEST_FILE), llmTestCode);
+    const t0 = Date.now();
+    const res = spawnSync("python3", [LLM_TEST_FILE], {
+      cwd: work,
+      encoding: "utf8",
+      timeout: 30_000,
+    });
+    const durationMs = Date.now() - t0;
+    const counts = parseCounts(res.stdout || "", res.stderr || "", res.status ?? 1);
+    return {
+      stdout: res.stdout || "",
+      stderr: res.stderr || "",
+      exitCode: res.status ?? 1,
+      ...counts,
+      timedOut: false,
+      durationMs,
+    };
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
 const round4 = (n) => Math.round(n * 10000) / 10000;
 const round6 = (n) => Math.round(n * 1e6) / 1e6;
 const costFor = (tok) =>
   round6((tok.input / 1e6) * PRICING.inputPerMTok + (tok.output / 1e6) * PRICING.outputPerMTok);
+
+const addTok = (a, b) => ({ input: a.input + b.input, output: a.output + b.output, total: a.total + b.total });
+
+/** Roll up the human-vs-LLM comparison across demo tasks (mirrors report.ts). */
+function summarizeAuthorship(tasks, testGenTokens) {
+  let comparedTasks = 0, agree = 0, llmMissed = 0, llmStricter = 0;
+  let humanTestCount = 0, llmTestCount = 0, humanPassAt1 = 0, llmPassAt1 = 0;
+  for (const t of tasks) {
+    const ta = t.attempts[0]?.testAuthorship ?? t.testAuthorship;
+    if (!ta || !ta.human || !ta.llm) continue;
+    comparedTasks++;
+    humanTestCount += ta.human.output.total;
+    llmTestCount += ta.llm.output.total;
+    if (ta.human.verdict) humanPassAt1++;
+    if (ta.llm.verdict) llmPassAt1++;
+    if (ta.agreement === "agree_pass" || ta.agreement === "agree_fail") agree++;
+    else if (ta.agreement === "llm_missed") llmMissed++;
+    else if (ta.agreement === "llm_stricter") llmStricter++;
+  }
+  return {
+    mode: "both",
+    verdictSource: "human",
+    comparedTasks,
+    agree,
+    agreementRate: comparedTasks ? round4(agree / comparedTasks) : 0,
+    llmMissed,
+    llmStricter,
+    humanTestCount,
+    llmTestCount,
+    humanPassAt1,
+    llmPassAt1,
+    testGenTokens,
+    testGenCost: costFor(testGenTokens),
+  };
+}
 
 function tokensFor(difficulty, passed) {
   const base = { easy: 5000, medium: 11000, hard: 22000 }[difficulty];
@@ -124,7 +344,7 @@ function buildTranscript(spec, stub, finalCode, testOutput, passed, note) {
   return t;
 }
 
-function buildTaskResult(taskDir, spec, scenario) {
+function buildTaskResult(taskDir, spec, scenario, withAuthorship) {
   const stub = readFileSync(join(taskDir, spec.entry_file), "utf8");
   const ref = readFileSync(join(REF_DIR, `${spec.id}.py`), "utf8");
   const finalCode = scenario.pass ? ref : (scenario.candidate ?? stub);
@@ -136,6 +356,23 @@ function buildTaskResult(taskDir, spec, scenario) {
   const wallClockMs = 4000 + turnsUsed * 1500 + testOutput.durationMs;
   const failureTags = passed ? [] : scenario.tags ?? [{ tag: "wrong_approach", justification: "Did not satisfy the hidden tests." }];
   const transcript = buildTranscript(spec, stub, finalCode, testOutput, passed, scenario.note ?? { reasoning: "Applying a fix.", giveUp: "The tests still fail; I was unable to resolve all cases." });
+
+  // Human-vs-LLM test authorship comparison (same solution, two suites).
+  let testAuthorship;
+  let testGenTokens = { input: 0, output: 0, total: 0 };
+  const llmCode = withAuthorship ? DEMO_LLM_SUITES[spec.id] : undefined;
+  if (llmCode) {
+    const llmOutput = runLlmSuite(taskDir, spec, finalCode, llmCode);
+    const llmPass = llmOutput.exitCode === 0;
+    testAuthorship = {
+      human: { author: "human", verdict: passed, output: testOutput, generated: false, testCode: null },
+      llm: { author: "llm", verdict: llmPass, output: llmOutput, generated: true, testCode: llmCode },
+      agreement: agreementOf(passed, llmPass),
+    };
+    const out = Math.round(llmCode.length / 4);
+    const inp = 1200 + Math.round(stub.length / 4);
+    testGenTokens = { input: inp, output: out, total: inp + out };
+  }
 
   const attempt = {
     attempt: 0,
@@ -149,9 +386,10 @@ function buildTaskResult(taskDir, spec, scenario) {
     failureTags,
     transcript,
     finalCode,
+    ...(testAuthorship ? { testAuthorship } : {}),
   };
 
-  return {
+  const task = {
     id: spec.id,
     title: spec.title,
     category: spec.category,
@@ -171,8 +409,11 @@ function buildTaskResult(taskDir, spec, scenario) {
     failureTags,
     finalTestOutput: testOutput,
     finalCode,
+    ...(testAuthorship ? { testAuthorship } : {}),
     attempts: [attempt],
   };
+
+  return { task, testGenTokens };
 }
 
 function summarize(tasks, pricing) {
@@ -207,19 +448,31 @@ function summarize(tasks, pricing) {
   };
 }
 
-function makeRun(label, model, scenarios) {
+function makeRun(label, model, scenarios, opts = {}) {
+  const withAuthorship = !!opts.withAuthorship;
   const names = readdirSync(TASKS_DIR).filter((n) => statSync(join(TASKS_DIR, n)).isDirectory()).sort();
+  let testGenTokens = { input: 0, output: 0, total: 0 };
   const tasks = names.map((name) => {
     const taskDir = join(TASKS_DIR, name);
     const spec = JSON.parse(readFileSync(join(taskDir, "task.json"), "utf8"));
-    return buildTaskResult(taskDir, spec, scenarios[spec.id] ?? { pass: true });
+    const { task, testGenTokens: tg } = buildTaskResult(
+      taskDir,
+      spec,
+      scenarios[spec.id] ?? { pass: true },
+      withAuthorship,
+    );
+    testGenTokens = addTok(testGenTokens, tg);
+    return task;
   });
   const config = {
     model, temperature: 0, maxTurns: 6, attempts: 1,
-    pricing: PRICING, label, harnessVersion: "0.1.0",
+    pricing: PRICING, label, harnessVersion: "0.2.0",
     verification: "confirmed", sandboxTimeoutMs: 30000,
+    testMode: withAuthorship ? "both" : "human",
+    verdictSource: "human",
   };
   const summary = summarize(tasks, PRICING);
+  summary.testAuthorship = withAuthorship ? summarizeAuthorship(tasks, testGenTokens) : null;
   const runId = `2026-06-20-${label}`;
   return {
     schemaVersion: 1, runId,
@@ -267,10 +520,15 @@ const v2 = {
 // ---- write -----------------------------------------------------------------
 
 mkdirSync(RESULTS_DIR, { recursive: true });
-for (const [label, scen] of [["sonnet-baseline", baseline], ["sonnet-v2-prompt", v2]]) {
-  const run = makeRun(label, "claude-sonnet-4-6", scen);
+for (const [label, scen, withAuthorship] of [
+  ["sonnet-baseline", baseline, true],
+  ["sonnet-v2-prompt", v2, false],
+]) {
+  const run = makeRun(label, "claude-sonnet-4-6", scen, { withAuthorship });
   const path = join(RESULTS_DIR, `${run.runId}.json`);
   writeFileSync(path, JSON.stringify(run, null, 2));
-  console.log(`wrote ${path}  pass@1 ${run.summary.passedAt1}/${run.summary.totalTasks}`);
+  const ta = run.summary.testAuthorship;
+  const taNote = ta ? `  authorship: ${ta.llmMissed} llm-missed / ${ta.comparedTasks} compared` : "";
+  console.log(`wrote ${path}  pass@1 ${run.summary.passedAt1}/${run.summary.totalTasks}${taNote}`);
 }
 console.log("\nDemo data generated. Run `node scripts/sync-results.mjs` to publish to the dashboard.");

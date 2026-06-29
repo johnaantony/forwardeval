@@ -8,8 +8,9 @@ import { loadTasks } from "./tasks.js";
 import { runAgent } from "./agent.js";
 import { verify } from "./verify.js";
 import { classifyFailure } from "./classifier.js";
+import { generateLlmTests } from "./gen-tests.js";
 import { summarize, writeRunResult } from "./report.js";
-import { costFor, emptyTokens } from "./cost.js";
+import { costFor, emptyTokens, addTokens } from "./cost.js";
 import { currentSandboxMode } from "./sandbox.js";
 import {
   DEFAULT_MODEL,
@@ -17,6 +18,7 @@ import {
   DEFAULT_TEMPERATURE,
   DEFAULT_ATTEMPTS,
   DEFAULT_SANDBOX_TIMEOUT_MS,
+  DEFAULT_TEST_MODE,
   HARNESS_VERSION,
   pricingForModel,
 } from "./config.js";
@@ -26,7 +28,21 @@ import type {
   RunConfig,
   RunResult,
   TaskResult,
+  TestAgreement,
+  TestAuthorshipResult,
+  TestOutput,
+  TestSuiteEval,
+  TokenUsage,
+  VerdictSource,
 } from "./types.js";
+
+/** Classify the human-vs-LLM verdicts on the same agent solution. */
+function agreementOf(humanPass: boolean, llmPass: boolean): TestAgreement {
+  if (humanPass && llmPass) return "agree_pass";
+  if (!humanPass && !llmPass) return "agree_fail";
+  if (llmPass && !humanPass) return "llm_missed"; // LLM suite missed an expert edge case
+  return "llm_stricter"; // LLM suite failed where the expert passed
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..", "..");
@@ -73,6 +89,10 @@ async function main() {
         `  --temperature <t>       Sampling temperature (default ${DEFAULT_TEMPERATURE})\n` +
         `  --attempts <k>          Attempts per task for pass@k (default ${DEFAULT_ATTEMPTS})\n` +
         `  --label <name>          Run label for comparison (default = model id)\n` +
+        `  --tests <mode>          human | llm | both (default ${DEFAULT_TEST_MODE}).\n` +
+        `                          human = expert suite only; llm = LLM-authored suite\n` +
+        `                          is authoritative; both = run both, human authoritative,\n` +
+        `                          LLM shadow (the human-vs-LLM comparison view)\n` +
         `  --only <id,id>          Only run these task ids\n` +
         `  --input-price <usd>     USD per 1M input tokens (Cost view)\n` +
         `  --output-price <usd>    USD per 1M output tokens (Cost view)\n` +
@@ -97,6 +117,14 @@ async function main() {
   const attempts = Math.max(1, num(args.attempts, DEFAULT_ATTEMPTS));
   const timeoutMs = num(args.timeout, DEFAULT_SANDBOX_TIMEOUT_MS);
   const label = (args.label as string) ?? model;
+
+  const testModeRaw = typeof args.tests === "string" ? args.tests : DEFAULT_TEST_MODE;
+  const testMode: "human" | "llm" | "both" =
+    testModeRaw === "llm" || testModeRaw === "both" ? testModeRaw : "human";
+  // In "llm" mode the LLM-authored suite is the headline verdict; otherwise human.
+  const verdictSource: VerdictSource = testMode === "llm" ? "llm" : "human";
+  // Both "llm" and "both" run the LLM suite as well (the comparison needs both).
+  const runLlmTests = testMode !== "human";
 
   let pricing: Pricing | null;
   if (args["no-pricing"]) {
@@ -136,18 +164,31 @@ async function main() {
     harnessVersion: HARNESS_VERSION,
     verification: "confirmed",
     sandboxTimeoutMs: timeoutMs,
+    testMode,
+    verdictSource,
   };
 
   console.log(`\nForwardEval run: ${runId}`);
   console.log(`  model=${model} maxTurns=${maxTurns} attempts=${attempts} temp=${temperature}`);
-  console.log(`  sandbox=${sandboxMode} pricing=${pricing ? "on" : "off"} tasks=${allTasks.length}\n`);
+  console.log(`  sandbox=${sandboxMode} pricing=${pricing ? "on" : "off"} tasks=${allTasks.length}`);
+  console.log(`  tests=${testMode}${runLlmTests ? ` (verdict from: ${verdictSource})` : ""}\n`);
 
   const startedAt = new Date().toISOString();
   const taskResults: TaskResult[] = [];
+  let testGenTokens: TokenUsage = emptyTokens();
 
   for (const { spec, dir, stubCode } of allTasks) {
     process.stdout.write(`• ${spec.id} [${spec.category}/${spec.difficulty}] ... `);
     const attemptResults: AttemptResult[] = [];
+
+    // Author the LLM test suite ONCE per task (it must not depend on the agent's
+    // solution, and regenerating per attempt would only burn tokens). It never
+    // sees the human suite, so the comparison stays honest.
+    let llmTests: Awaited<ReturnType<typeof generateLlmTests>> | null = null;
+    if (runLlmTests) {
+      llmTests = await generateLlmTests({ client, model, task: spec, stubCode });
+      testGenTokens = addTokens(testGenTokens, llmTests.tokens);
+    }
 
     for (let k = 0; k < attempts; k++) {
       const t0 = Date.now();
@@ -161,15 +202,63 @@ async function main() {
         timeoutMs,
       });
 
-      // Authoritative verification on a CLEAN task copy + the agent's final file.
-      const finalTestOutput = await verify({
+      const finalCode = agentOut.finalCode || stubCode;
+
+      // Human (expert) suite: authoritative verification on a CLEAN task copy.
+      // Run it whenever the mode needs it (human or both = authoritative; llm = shadow).
+      const humanOutput = await verify({
         taskDir: dir,
         testCommand: spec.test_command,
         timeoutMs,
-        overlay: { [spec.entry_file]: agentOut.finalCode || stubCode },
+        overlay: { [spec.entry_file]: finalCode },
       });
 
+      // LLM-authored suite: same agent solution, scored by the generated suite.
+      let llmOutput: TestOutput | null = null;
+      if (llmTests) {
+        llmOutput = await verify({
+          taskDir: dir,
+          testCommand: llmTests.testCommand,
+          timeoutMs,
+          overlay: {
+            [spec.entry_file]: finalCode,
+            [llmTests.testFileName]: llmTests.testCode,
+          },
+        });
+      }
+
+      const humanPass = humanOutput.exitCode === 0;
+      const llmPass = llmOutput ? llmOutput.exitCode === 0 : false;
+
+      // The authoritative verdict for this attempt.
+      const finalTestOutput =
+        verdictSource === "llm" && llmOutput ? llmOutput : humanOutput;
       const passed = finalTestOutput.exitCode === 0;
+
+      // Test authorship comparison (omitted entirely in human-only mode).
+      let testAuthorship: TestAuthorshipResult | undefined;
+      if (runLlmTests && llmTests && llmOutput) {
+        const humanEval: TestSuiteEval = {
+          author: "human",
+          verdict: humanPass,
+          output: humanOutput,
+          generated: false,
+          testCode: null, // the expert suite stays hidden
+        };
+        const llmEval: TestSuiteEval = {
+          author: "llm",
+          verdict: llmPass,
+          output: llmOutput,
+          generated: true,
+          testCode: llmTests.testCode,
+        };
+        testAuthorship = {
+          human: humanEval,
+          llm: llmEval,
+          agreement: agreementOf(humanPass, llmPass),
+        };
+      }
+
       const failureTags = passed
         ? []
         : await classifyFailure({
@@ -193,6 +282,7 @@ async function main() {
         failureTags,
         transcript: agentOut.transcript,
         finalCode: agentOut.finalCode,
+        testAuthorship,
       });
     }
 
@@ -224,14 +314,17 @@ async function main() {
       failureTags: rep.failureTags,
       finalTestOutput: rep.finalTestOutput,
       finalCode: rep.finalCode,
+      testAuthorship: rep.testAuthorship,
       attempts: attemptResults,
     });
 
-    console.log(passAt1 ? "PASS" : passAtK ? `pass@${attempts}` : "FAIL");
+    const verdictLabel = passAt1 ? "PASS" : passAtK ? `pass@${attempts}` : "FAIL";
+    const agree = rep.testAuthorship?.agreement;
+    console.log(agree ? `${verdictLabel}  [tests: ${agree}]` : verdictLabel);
   }
 
   const finishedAt = new Date().toISOString();
-  const summary = summarize(taskResults, config);
+  const summary = summarize(taskResults, config, testGenTokens);
   const run: RunResult = {
     schemaVersion: 1,
     runId,
@@ -253,6 +346,16 @@ async function main() {
   }
   console.log(`  tokens/solve: ${summary.tokensPerSolve.toLocaleString()}   wasted (on fails): ${summary.wastedTokens.toLocaleString()} tok`);
   console.log(`  avg turns-to-solve: ${summary.avgTurnsToSolve}`);
+  const ta = summary.testAuthorship;
+  if (ta) {
+    console.log(`\n── Test authorship (human vs LLM) ───────────`);
+    console.log(`  mode=${ta.mode} verdict-from=${ta.verdictSource}  compared ${ta.comparedTasks} tasks`);
+    console.log(`  agreement: ${(ta.agreementRate * 100).toFixed(1)}% (${ta.agree}/${ta.comparedTasks})`);
+    console.log(`  LLM tests MISSED what the expert caught: ${ta.llmMissed}   LLM stricter: ${ta.llmStricter}`);
+    console.log(`  pass@1 under human suite: ${ta.humanPassAt1}   under LLM suite: ${ta.llmPassAt1}`);
+    console.log(`  test cases authored - human: ${ta.humanTestCount}  LLM: ${ta.llmTestCount}`);
+    console.log(`  LLM test-gen cost: ${ta.testGenTokens.total.toLocaleString()} tok${ta.testGenCost !== null ? " ($" + ta.testGenCost.toFixed(4) + ")" : ""}`);
+  }
   console.log(`\nWrote ${path}`);
   console.log(`Next: run \`node scripts/sync-results.mjs\` then start the dashboard.\n`);
 }

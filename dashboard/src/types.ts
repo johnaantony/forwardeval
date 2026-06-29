@@ -32,6 +32,40 @@ export interface TestOutput {
   durationMs: number;
 }
 
+export type TestAuthor = "human" | "llm";
+export type VerdictSource = "human" | "llm";
+export type TestAgreement = "agree_pass" | "agree_fail" | "llm_missed" | "llm_stricter";
+
+export interface TestSuiteEval {
+  author: TestAuthor;
+  verdict: boolean;
+  output: TestOutput;
+  generated: boolean;
+  testCode: string | null;
+}
+
+export interface TestAuthorshipResult {
+  human: TestSuiteEval | null;
+  llm: TestSuiteEval | null;
+  agreement: TestAgreement | null;
+}
+
+export interface TestAuthorshipSummary {
+  mode: "human" | "llm" | "both";
+  verdictSource: VerdictSource;
+  comparedTasks: number;
+  agree: number;
+  agreementRate: number;
+  llmMissed: number;
+  llmStricter: number;
+  humanTestCount: number;
+  llmTestCount: number;
+  humanPassAt1: number;
+  llmPassAt1: number;
+  testGenTokens: TokenUsage;
+  testGenCost: number | null;
+}
+
 export type TranscriptItem =
   | { type: "system"; text: string }
   | { type: "assistant_text"; text: string }
@@ -51,6 +85,7 @@ export interface AttemptResult {
   failureTags: FailureTag[];
   transcript: TranscriptItem[];
   finalCode: string;
+  testAuthorship?: TestAuthorshipResult;
 }
 
 export interface TaskResult {
@@ -73,6 +108,7 @@ export interface TaskResult {
   failureTags: FailureTag[];
   finalTestOutput: TestOutput;
   finalCode: string;
+  testAuthorship?: TestAuthorshipResult;
   attempts: AttemptResult[];
 }
 
@@ -99,6 +135,7 @@ export interface RunSummary {
   wastedTokens: number;
   wastedCost: number | null;
   totalWallClockMs: number;
+  testAuthorship?: TestAuthorshipSummary | null;
 }
 
 export interface RunConfig {
@@ -111,6 +148,8 @@ export interface RunConfig {
   harnessVersion: string;
   verification: string;
   sandboxTimeoutMs: number;
+  testMode?: "human" | "llm" | "both";
+  verdictSource?: VerdictSource;
 }
 
 export interface RunResult {
