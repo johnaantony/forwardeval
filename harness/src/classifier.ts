@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { modelAcceptsSamplingParams } from "./config.js";
 import { FAILURE_TAGS } from "./types.js";
 import type { FailureTag, FailureTagName, TranscriptItem, TestOutput } from "./types.js";
 
@@ -94,7 +95,7 @@ export async function classifyFailure(opts: {
     const resp = await opts.client.messages.create({
       model: opts.model,
       max_tokens: 1024,
-      temperature: 0,
+      ...(modelAcceptsSamplingParams(opts.model) ? { temperature: 0 } : {}),
       tools: [classifyTool],
       tool_choice: { type: "tool", name: "classify_failure" },
       messages: [{ role: "user", content: prompt }],

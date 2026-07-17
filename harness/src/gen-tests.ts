@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { emptyTokens } from "./cost.js";
+import { modelAcceptsSamplingParams } from "./config.js";
 import type { TaskSpec, TokenUsage } from "./types.js";
 
 /**
@@ -101,7 +102,9 @@ export async function generateLlmTests(opts: {
     const resp = await client.messages.create({
       model,
       max_tokens: 4000,
-      temperature: opts.temperature ?? 0,
+      ...(modelAcceptsSamplingParams(model)
+        ? { temperature: opts.temperature ?? 0 }
+        : {}),
       tools: [genTool],
       tool_choice: { type: "tool", name: "emit_test_suite" },
       messages: [{ role: "user", content: prompt }],

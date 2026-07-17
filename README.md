@@ -67,9 +67,10 @@ cp ../.env.example ../.env     # then put your ANTHROPIC_API_KEY in .env
 node ../scripts/sanity-tasks.mjs
 
 # run a real eval (pass@1 over all tasks):
-npm run eval -- --model claude-sonnet-4-6 --label sonnet-baseline
+npm run eval -- --model claude-sonnet-5 --label sonnet5-baseline
 
-# compare another model or prompt:
+# compare another model or prompt (Claude 5 family and Opus 4.x supported):
+npm run eval -- --model claude-fable-5 --label fable5-baseline
 npm run eval -- --model claude-opus-4-8 --label opus-baseline
 
 # 2) Publish results + dashboard
@@ -91,9 +92,9 @@ In the demo files the **test verdicts are real** (Python is actually executed ag
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--model <id>` | `claude-sonnet-4-6` | Agent model (compare models side by side) |
+| `--model <id>` | `claude-sonnet-5` | Agent model (compare models side by side); Claude 5 family (`claude-fable-5`, `claude-sonnet-5`) and Opus 4.x supported |
 | `--max-turns <n>` | `6` | Max agent turns per task |
-| `--temperature <t>` | `0` | Sampling temperature |
+| `--temperature <t>` | `0` | Sampling temperature. Ignored on the Claude 5 family and Opus 4.7+ (those models reject sampling params, so the harness omits it automatically) |
 | `--attempts <k>` | `1` | Attempts per task, for pass@k |
 | `--label <name>` | model id | Run label (used in Run Comparison) |
 | `--tests <mode>` | `human` | Who authors the suite: `human` (expert only), `llm` (LLM-authored suite is the verdict), or `both` (run both, human authoritative, LLM shadow). See [Test authorship](#test-authorship-human-expert-vs-llm-authored-tests). |
