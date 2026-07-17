@@ -4,8 +4,9 @@ import { loadManifest, loadRun } from "./api";
 import { Overview } from "./components/Overview";
 import { TaskExplorer } from "./components/TaskExplorer";
 import { Comparison } from "./components/Comparison";
+import { TestAuthorship } from "./components/TestAuthorship";
 
-type Tab = "overview" | "tasks" | "compare";
+type Tab = "overview" | "tasks" | "authorship" | "compare";
 
 export default function App() {
   const [manifest, setManifest] = useState<ManifestEntry[]>([]);
@@ -77,7 +78,14 @@ export default function App() {
         <>
           {/* tabs */}
           <nav className="mb-5 flex gap-1 border-b border-ink-600">
-            {(["overview", "tasks", "compare"] as const).map((t) => (
+            {(
+              [
+                "overview",
+                "tasks",
+                ...(active.summary.testAuthorship ? (["authorship"] as const) : []),
+                "compare",
+              ] as Tab[]
+            ).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -85,13 +93,22 @@ export default function App() {
                   tab === t ? "border-b-2 border-accent text-white" : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {t === "compare" ? "Run comparison" : t === "tasks" ? "Task explorer" : "Overview"}
+                {t === "compare"
+                  ? "Run comparison"
+                  : t === "tasks"
+                    ? "Task explorer"
+                    : t === "authorship"
+                      ? "Test authorship"
+                      : "Overview"}
               </button>
             ))}
           </nav>
 
-          {tab === "overview" && <Overview run={active} />}
+          {(tab === "overview" || (tab === "authorship" && !active.summary.testAuthorship)) && (
+            <Overview run={active} />
+          )}
           {tab === "tasks" && <TaskExplorer run={active} />}
+          {tab === "authorship" && active.summary.testAuthorship && <TestAuthorship run={active} />}
           {tab === "compare" && (
             <CompareTab
               manifest={manifest}

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, relative, isAbsolute, basename } from "node:path";
 import { runInSandbox } from "./sandbox.js";
 import { addTokens, emptyTokens } from "./cost.js";
+import { modelAcceptsSamplingParams } from "./config.js";
 import { DEFAULT_HIDDEN_FILES } from "./types.js";
 import type { TaskSpec, TranscriptItem, TokenUsage } from "./types.js";
 
@@ -151,7 +152,8 @@ export async function runAgent(opts: {
         resp = await client.messages.create({
           model,
           max_tokens: MAX_TOKENS_PER_CALL,
-          temperature,
+          // Claude 5 family / Opus 4.7+ reject sampling params with a 400
+          ...(modelAcceptsSamplingParams(model) ? { temperature } : {}),
           system: SYSTEM_PROMPT,
           tools: TOOLS,
           messages,

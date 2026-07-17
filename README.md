@@ -67,9 +67,10 @@ cp ../.env.example ../.env     # then put your ANTHROPIC_API_KEY in .env
 node ../scripts/sanity-tasks.mjs
 
 # run a real eval (pass@1 over all tasks):
-npm run eval -- --model claude-sonnet-4-6 --label sonnet-baseline
+npm run eval -- --model claude-sonnet-5 --label sonnet5-baseline
 
-# compare another model or prompt:
+# compare another model or prompt (Claude 5 family and Opus 4.x supported):
+npm run eval -- --model claude-fable-5 --label fable5-baseline
 npm run eval -- --model claude-opus-4-8 --label opus-baseline
 
 # 2) Publish results + dashboard
@@ -91,11 +92,12 @@ In the demo files the **test verdicts are real** (Python is actually executed ag
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--model <id>` | `claude-sonnet-4-6` | Agent model (compare models side by side) |
+| `--model <id>` | `claude-sonnet-5` | Agent model (compare models side by side); Claude 5 family (`claude-fable-5`, `claude-sonnet-5`) and Opus 4.x supported |
 | `--max-turns <n>` | `6` | Max agent turns per task |
-| `--temperature <t>` | `0` | Sampling temperature |
+| `--temperature <t>` | `0` | Sampling temperature. Ignored on the Claude 5 family and Opus 4.7+ (those models reject sampling params, so the harness omits it automatically) |
 | `--attempts <k>` | `1` | Attempts per task, for pass@k |
 | `--label <name>` | model id | Run label (used in Run Comparison) |
+| `--tests <mode>` | `human` | Who authors the suite: `human` (expert only), `llm` (LLM-authored suite is the verdict), or `both` (run both, human authoritative, LLM shadow). See [Test authorship](#test-authorship-human-expert-vs-llm-authored-tests). |
 | `--only <id,id>` | all | Run a subset of tasks |
 | `--input-price` / `--output-price` | model list price | USD per 1M tokens (Cost view) |
 | `--no-pricing` | off | Disable the Cost view (Tokens still shown) |
@@ -159,6 +161,35 @@ The 2025 eval market converged on a hard lesson. LLM judges show **self-enhancem
 See [EVAL_DESIGN.md](EVAL_DESIGN.md) for the full methodology and trust argument.
 
 ---
+
+## Test authorship: human expert vs LLM-authored tests
+
+Deterministic tests are only as good as the scenarios someone thought to write. A use-case expert knows the unusual inputs that matter in their domain; an LLM asked to write tests may simply not think of them. ForwardEval makes that gap measurable.
+
+Two sources can author the deterministic suite:
+
+- **Human expert** (default): the hand-written `test_suite.py`, the verifier ForwardEval has always used.
+- **LLM-authored**: Claude writes a `unittest` suite from the prompt and the stub alone, never having seen the expert's suite.
+
+This is **not** LLM-as-judge. The LLM writes the tests up front; those tests then run deterministically and their exit code is the verdict. The risk it surfaces is exactly the expert's worry: the model may not think of the edge case, so its suite passes code the expert's suite would fail.
+
+```bash
+npm run eval -- --tests human          # expert suite only (original behavior)
+npm run eval -- --tests llm            # LLM-authored suite is the verdict (human runs as shadow)
+npm run eval -- --tests both           # both run; human authoritative, LLM shadow; full comparison
+```
+
+In `both` and `llm` mode the **same agent solution** is scored by both suites, and each task is labeled:
+
+| Label | Meaning |
+|---|---|
+| `agree_pass` / `agree_fail` | both suites reach the same verdict |
+| **`llm_missed`** | the LLM suite PASSES but the expert suite FAILS: the LLM did not test an edge case the expert caught (false confidence) |
+| `llm_stricter` | the LLM suite FAILS but the expert suite PASSES: over-constrained, or it caught something the expert did not |
+
+The **Test authorship** tab in the dashboard rolls this up: agreement rate, `llm_missed` count (the headline), pass@1 under each author, how many test cases each side wrote, and the token cost of LLM test generation. Click any task to read the LLM-generated test file next to both verdicts.
+
+In the bundled demo run, the LLM-authored suites pass two solutions the expert suite catches as buggy (`word-count-edgecases`, `token-bucket-rate-limiter`), the expert wrote 47 test cases to the LLM's 18, and the LLM suite shows a *higher* pass rate than the expert suite. That higher number is the trap: more green, less truth. The point is not that LLM-authored tests are useless (on most tasks here they agree); it is knowing **which** tasks still need the expert.
 
 ## Adding a task
 
