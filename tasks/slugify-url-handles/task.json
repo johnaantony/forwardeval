@@ -1,0 +1,17 @@
+{
+  "id": "slugify-url-handles",
+  "title": "Slugify page titles into URL handles",
+  "language": "python",
+  "category": "edge_cases",
+  "difficulty": "medium",
+  "prompt": "Implement `slugify(title)` in solution_stub.py for generating URL handles from page titles. Rules: lowercase everything; treat runs of spaces, tabs, newlines, underscores, and hyphens as a SINGLE separator; drop every other non-alphanumeric character; join words with single hyphens; no leading or trailing hyphens. If nothing survives (empty or punctuation-only input), return \"untitled\". The current version only lowercases and swaps spaces for hyphens, so punctuation leaks into handles and empty titles produce empty slugs.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"],
+  "provenance": {
+    "source": "captured",
+    "capturedAt": "2026-07-15",
+    "reviewStatus": "human_reviewed",
+    "sessionRef": "webapp-session-slugify"
+  }
+}

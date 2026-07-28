@@ -1,0 +1,17 @@
+{
+  "id": "retry-with-backoff",
+  "title": "Retry helper with exponential backoff",
+  "language": "python",
+  "category": "feature_add",
+  "difficulty": "medium",
+  "prompt": "Implement `retry(fn, attempts=3, base_delay=1.0, sleep=None)` in solution_stub.py for a flaky API client. Call `fn()` up to `attempts` times. On success return its result immediately. When a call raises, wait before the next try using exponential backoff: the wait before retry number n (1-indexed) is `base_delay * 2 ** (n - 1)` seconds, so with base_delay=1.0 the waits are 1.0, 2.0, 4.0, ... Waiting must go through the injected `sleep` callable (default `time.sleep`) so callers and tests can control time. If every attempt raises, re-raise the LAST exception; never swallow it. No wait after the final failed attempt. The current version re-calls the function without backing off and returns None when all attempts fail.",
+  "entry_file": "solution_stub.py",
+  "test_command": "python3 test_suite.py",
+  "hidden_files": ["test_suite.py"],
+  "provenance": {
+    "source": "captured",
+    "capturedAt": "2026-07-16",
+    "reviewStatus": "human_reviewed",
+    "sessionRef": "api-client-session-retry"
+  }
+}

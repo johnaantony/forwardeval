@@ -67,6 +67,7 @@ export function TaskExplorer({ run }: { run: RunResult }) {
             {head("turnsUsed", "Turns")}
             {head("tokens", "Tokens")}
             <th className="px-3 py-2 text-left font-medium">Cost</th>
+            <th className="px-3 py-2 text-left font-medium" title="tool calls / rework loops after first test run">Behavior</th>
             <th className="px-3 py-2 text-left font-medium">Failure tags</th>
           </tr>
         </thead>
@@ -77,16 +78,48 @@ export function TaskExplorer({ run }: { run: RunResult }) {
               onClick={() => setSelected(t)}
               className="cursor-pointer border-t border-ink-700 hover:bg-ink-700/50"
             >
-              <td className="px-3 py-2"><PassPill passed={t.passed} /></td>
+              <td className="px-3 py-2">
+                <PassPill passed={t.passed} />
+                {t.outcome && (
+                  <div
+                    className={`mt-1 text-[10px] font-semibold ${t.outcome.accepted ? "text-pass" : "text-fail"}`}
+                    title={t.outcome.note ?? ""}
+                  >
+                    {t.outcome.accepted ? "human: accepted" : "human: REJECTED"}
+                  </div>
+                )}
+              </td>
               <td className="px-3 py-2">
                 <div className="font-medium text-slate-100">{t.title}</div>
-                <div className="font-mono text-[11px] text-slate-500">{t.id}</div>
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500">
+                  {t.id}
+                  {t.provenance?.source === "captured" && (
+                    <span
+                      className="rounded border border-accent/30 bg-accent/10 px-1 font-sans text-[10px] text-accent"
+                      title={`Captured from a real session${t.provenance.sessionRef ? ` (${t.provenance.sessionRef})` : ""}${t.provenance.reviewStatus === "human_reviewed" ? ", suite ratified by a human" : ", suite NOT yet human-reviewed"}`}
+                    >
+                      captured
+                    </span>
+                  )}
+                </div>
               </td>
               <td className="px-3 py-2 text-slate-300">{t.category.replace("_", " ")}</td>
               <td className="px-3 py-2 text-slate-300">{t.difficulty}</td>
               <td className="px-3 py-2 tabular-nums text-slate-300">{t.turnsUsed}</td>
               <td className="px-3 py-2 tabular-nums text-slate-300">{fmtTokens(t.tokens.total)}</td>
               <td className="px-3 py-2 tabular-nums text-slate-300">{fmtCost(t.cost)}</td>
+              <td className="px-3 py-2 text-xs tabular-nums text-slate-400">
+                {t.behavior ? (
+                  <span title={`${t.behavior.toolCalls} tool calls · ${t.behavior.reworkLoops} rework loops · first try ${t.behavior.firstTryPass ? "passed" : "failed"}`}>
+                    {t.behavior.toolCalls} calls
+                    {t.behavior.reworkLoops > 0 && (
+                      <span className="text-warn"> · {t.behavior.reworkLoops} rework</span>
+                    )}
+                  </span>
+                ) : (
+                  "-"
+                )}
+              </td>
               <td className="px-3 py-2">
                 <div className="flex flex-wrap gap-1">
                   {t.failureTags.map((ft, i) => (

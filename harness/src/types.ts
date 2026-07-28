@@ -40,6 +40,21 @@ export interface FailureTag {
   justification: string;
 }
 
+/**
+ * Where a task came from (v0.4 closed loop).
+ *  - "authored": hand-written for the suite (the original 15).
+ *  - "captured": promoted from a real coding session via `npm run capture`.
+ * Captured tasks MUST be human-reviewed before their verdicts count: the tool
+ * drafts assertions, but only the person who did the work knows what the
+ * result must guarantee.
+ */
+export interface TaskProvenance {
+  source: "authored" | "captured";
+  capturedAt?: string; // ISO date, captured tasks only
+  reviewStatus?: "human_reviewed" | "unreviewed";
+  sessionRef?: string; // id of the originating session, if any
+}
+
 /** A task definition, read from tasks/<id>/task.json. */
 export interface TaskSpec {
   id: string;
@@ -57,6 +72,8 @@ export interface TaskSpec {
    * source. Defaults to ["test_suite.py"] when omitted.
    */
   hidden_files?: string[];
+  /** Task origin. Absent = "authored" (backward compatible). */
+  provenance?: TaskProvenance;
 }
 
 export const DEFAULT_HIDDEN_FILES = ["test_suite.py"];
@@ -117,6 +134,35 @@ export interface TestAuthorshipResult {
   agreement: TestAgreement | null; // present only when BOTH suites ran
 }
 
+/**
+ * Layer-2 behavior stats (v0.4), derived from the transcript. Pass/fail says
+ * WHETHER the agent got there; behavior says HOW: efficiently on the first try,
+ * or by thrashing through rework loops.
+ */
+export interface BehaviorStats {
+  toolCalls: number; // total tool invocations
+  testRuns: number; // run_tests invocations
+  writes: number; // write_file invocations
+  /** write_file calls made AFTER the first test run, i.e. rewrites in response to test feedback. */
+  reworkLoops: number;
+  /** Did the FIRST run_tests call exit 0? (false when the agent never ran tests and failed) */
+  firstTryPass: boolean;
+  turnsUsed: number;
+}
+
+/**
+ * Layer-3 outcome (v0.4): did a human actually keep the result? Recorded out of
+ * band (outcomes.json via `node scripts/outcome.mjs`), because only a person
+ * can say whether passing code was ACCEPTED. The interesting cell is
+ * passed-but-rejected: the tests said green, the human said no.
+ */
+export interface TaskOutcome {
+  accepted: boolean;
+  reworkRequired?: boolean;
+  note?: string;
+  recordedAt?: string; // ISO
+}
+
 /** One item in the agent transcript - rendered turn-by-turn in the viewer. */
 export type TranscriptItem =
   | { type: "system"; text: string }
@@ -146,6 +192,8 @@ export interface AttemptResult {
   finalCode: string;
   /** Human-vs-LLM test authorship comparison (omitted in --tests human mode). */
   testAuthorship?: TestAuthorshipResult;
+  /** Layer-2 behavior stats derived from this attempt's transcript (v0.4). */
+  behavior?: BehaviorStats;
 }
 
 /** Rolled-up result for one task (representative attempt + all attempts). */
@@ -174,6 +222,12 @@ export interface TaskResult {
   finalCode: string;
   /** Human-vs-LLM test authorship comparison for the representative attempt. */
   testAuthorship?: TestAuthorshipResult;
+  /** Layer-2 behavior stats for the representative attempt (v0.4). */
+  behavior?: BehaviorStats;
+  /** Layer-3 human outcome, when recorded in outcomes.json (v0.4). */
+  outcome?: TaskOutcome;
+  /** Task origin; absent = authored (v0.4). */
+  provenance?: TaskProvenance;
 
   attempts: AttemptResult[];
 }
@@ -232,6 +286,60 @@ export interface CategoryRollup {
   rate: number;
 }
 
+/**
+ * Judge-calibration band (v0.4). Turns the authorship comparison into an
+ * actionable per-category trust score: WHEN can an LLM-authored suite (or, by
+ * extension, an LLM judge) be trusted, instead of a blanket yes/no.
+ */
+export type CalibrationBand =
+  | "autonomous" // agreement high AND enough samples: a judge can gate unsupervised
+  | "supervised" // decent agreement: judge for triage, human confirms
+  | "unsafe" // low agreement: deterministic verification only
+  | "insufficient_data"; // too few compared tasks to say anything honest
+
+export interface CalibrationCell {
+  n: number; // compared tasks in this bucket
+  agree: number;
+  agreementRate: number;
+  /** Wilson 95% interval - small n MUST show its uncertainty, not hide it. */
+  ci: { low: number; high: number };
+  band: CalibrationBand;
+}
+
+export interface JudgeCalibration {
+  overall: CalibrationCell;
+  byCategory: Record<string, CalibrationCell>;
+  /** The cutoffs used, recorded so the report is self-describing. */
+  thresholds: {
+    autonomous: number; // min agreement rate for "autonomous"
+    supervised: number; // min agreement rate for "supervised"
+    minN: number; // below this, band = insufficient_data
+    minNAutonomous: number; // "autonomous" additionally requires this many samples
+  };
+}
+
+/** Layer-2/Layer-3 rollup (v0.4). */
+export interface MetricLayersSummary {
+  behavior: {
+    tasksWithData: number;
+    avgToolCalls: number;
+    avgReworkLoops: number;
+    firstTryPassRate: number; // among tasks with behavior data
+  } | null;
+  /**
+   * The cross-layer matrix. passedButRejected is the headline: the tests said
+   * green, the human said no - the exact shape of insight as llm_missed, one
+   * layer further out. failedAccepted flags over-strict tests.
+   */
+  outcome: {
+    tasksWithOutcome: number;
+    passedAccepted: number;
+    passedButRejected: number;
+    failedAccepted: number;
+    failedRejected: number;
+  } | null;
+}
+
 export interface RunSummary {
   totalTasks: number;
   passedAt1: number;
@@ -252,6 +360,12 @@ export interface RunSummary {
   totalWallClockMs: number;
   /** Present only when testMode !== "human" (i.e. a comparison was run). */
   testAuthorship: TestAuthorshipSummary | null;
+  /** v0.4: per-category judge trust scores; present when testAuthorship is. */
+  judgeCalibration?: JudgeCalibration | null;
+  /** v0.4: behavior + outcome layers on top of pass/fail. */
+  metricLayers?: MetricLayersSummary | null;
+  /** v0.4: how many tasks came from real sessions vs were hand-authored. */
+  provenanceCounts?: { authored: number; captured: number };
 }
 
 export interface RunResult {

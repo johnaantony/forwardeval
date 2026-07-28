@@ -11,7 +11,8 @@
     "build": "tsc",
     "eval": "tsx src/index.ts run",
     "sanity": "tsx src/sanity.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "capture": "tsx src/capture.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

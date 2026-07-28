@@ -1,6 +1,6 @@
 import type { Pricing } from "./types.js";
 
-export const HARNESS_VERSION = "0.3.0";
+export const HARNESS_VERSION = "0.4.0";
 
 /**
  * Test authorship mode. "human" preserves the original behavior (expert suite is

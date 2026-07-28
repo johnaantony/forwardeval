@@ -183,6 +183,254 @@ class TestLRU(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 `,
+  "binary-search-offbyone": `import unittest
+from solution_stub import search
+
+
+class TestSearch(unittest.TestCase):
+    def test_found(self):
+        self.assertEqual(search([1, 3, 5, 7], 5), 2)
+
+    def test_not_found(self):
+        self.assertEqual(search([1, 3, 5, 7], 4), -1)
+
+    def test_empty(self):
+        self.assertEqual(search([], 1), -1)
+
+    def test_single(self):
+        self.assertEqual(search([9], 9), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "csv-parser-quoted-commas": `import unittest
+from solution_stub import parse_csv
+
+
+class TestParseCsv(unittest.TestCase):
+    def test_plain(self):
+        self.assertEqual(parse_csv("a,b,c"), ["a", "b", "c"])
+
+    def test_quoted_comma(self):
+        self.assertEqual(parse_csv('"a,b",c'), ["a,b", "c"])
+
+    def test_empty_line(self):
+        self.assertEqual(parse_csv(""), [""])
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "dedupe-preserve-order": `import unittest
+from solution_stub import dedupe
+
+
+class TestDedupe(unittest.TestCase):
+    def test_order_preserved(self):
+        self.assertEqual(dedupe([3, 1, 3, 2, 1]), [3, 1, 2])
+
+    def test_empty(self):
+        self.assertEqual(dedupe([]), [])
+
+    def test_no_dupes(self):
+        self.assertEqual(dedupe([1, 2, 3]), [1, 2, 3])
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "flatten-nested-list": `import unittest
+from solution_stub import flatten
+
+
+class TestFlatten(unittest.TestCase):
+    def test_nested(self):
+        self.assertEqual(flatten([1, [2, [3]], 4]), [1, 2, 3, 4])
+
+    def test_empty(self):
+        self.assertEqual(flatten([]), [])
+
+    def test_flat(self):
+        self.assertEqual(flatten([1, 2]), [1, 2])
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "merge-intervals": `import unittest
+from solution_stub import merge
+
+
+class TestMerge(unittest.TestCase):
+    def test_overlap(self):
+        self.assertEqual(merge([[1, 3], [2, 6], [8, 10]]), [[1, 6], [8, 10]])
+
+    def test_touching(self):
+        self.assertEqual(merge([[1, 2], [2, 3]]), [[1, 3]])
+
+    def test_empty(self):
+        self.assertEqual(merge([]), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "run-length-encoding": `import unittest
+from solution_stub import encode
+
+
+class TestEncode(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(encode("aaabb"), "a3b2")
+
+    def test_single(self):
+        self.assertEqual(encode("a"), "a1")
+
+    def test_empty(self):
+        self.assertEqual(encode(""), "")
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "snake-to-camel": `import unittest
+from solution_stub import to_camel
+
+
+class TestToCamel(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(to_camel("hello_world"), "helloWorld")
+
+    def test_many_parts(self):
+        self.assertEqual(to_camel("a_b_c"), "aBC")
+
+    def test_single_word(self):
+        self.assertEqual(to_camel("word"), "word")
+
+    def test_empty(self):
+        self.assertEqual(to_camel(""), "")
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  "temperature-convert": `import unittest
+from solution_stub import convert
+
+
+class TestConvert(unittest.TestCase):
+    def test_c_to_f(self):
+        self.assertEqual(convert(0, "C", "F"), 32.0)
+
+    def test_f_to_c(self):
+        self.assertEqual(convert(212, "F", "C"), 100.0)
+
+    def test_c_to_k(self):
+        self.assertEqual(convert(0, "C", "K"), 273.15)
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // MISSES the leading-zero rule ("01.2.3.4" must be invalid) the expert asserts.
+  "validate-ipv4": `import unittest
+from solution_stub import is_valid_ipv4
+
+
+class TestIpv4(unittest.TestCase):
+    def test_valid(self):
+        self.assertTrue(is_valid_ipv4("192.168.0.1"))
+        self.assertTrue(is_valid_ipv4("255.255.255.255"))
+
+    def test_out_of_range(self):
+        self.assertFalse(is_valid_ipv4("256.1.1.1"))
+
+    def test_wrong_octet_count(self):
+        self.assertFalse(is_valid_ipv4("1.2.3"))
+
+    def test_non_numeric(self):
+        self.assertFalse(is_valid_ipv4("a.b.c.d"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // MISSES separator collapsing and the empty->"untitled" fallback.
+  "slugify-url-handles": `import unittest
+from solution_stub import slugify
+
+
+class TestSlugify(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(slugify("Hello World"), "hello-world")
+
+    def test_punctuation(self):
+        self.assertEqual(slugify("Hello, World!"), "hello-world")
+
+    def test_lowercase(self):
+        self.assertEqual(slugify("MiXeD"), "mixed")
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+  // MISSES the backoff schedule (only counts calls and the re-raise).
+  "retry-with-backoff": `import unittest
+from solution_stub import retry
+
+
+class TestRetry(unittest.TestCase):
+    def test_success(self):
+        self.assertEqual(retry(lambda: 7, sleep=lambda d: None), 7)
+
+    def test_retries_then_succeeds(self):
+        calls = []
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise ValueError("boom")
+            return "ok"
+        self.assertEqual(retry(flaky, attempts=3, sleep=lambda d: None), "ok")
+        self.assertEqual(len(calls), 3)
+
+    def test_reraises(self):
+        def always():
+            raise ValueError("nope")
+        with self.assertRaises(ValueError):
+            retry(always, attempts=2, sleep=lambda d: None)
+
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+};
+
+/**
+ * Layer-3 demo outcomes (the human-acceptance sidecar). The interesting cell:
+ * retry-with-backoff PASSES its ratified suite but the human REJECTED it -
+ * the helper retries every exception type and the caller needed ValueError to
+ * fail fast. Tests said green; the person said no. That is passedButRejected.
+ */
+const DEMO_OUTCOMES = {
+  "retry-with-backoff": {
+    accepted: false,
+    reworkRequired: true,
+    note: "Backoff is correct, but it retries EVERY exception; callers need ValueError to fail fast. The suite never encoded that intent.",
+    recordedAt: "2026-07-16T18:30:00.000Z",
+  },
+  "slugify-url-handles": {
+    accepted: true,
+    note: "Shipped in the page editor.",
+    recordedAt: "2026-07-15T22:10:00.000Z",
+  },
+  fizzbuzz: { accepted: true, recordedAt: "2026-07-15T22:11:00.000Z" },
+  "snake-to-camel": { accepted: true, recordedAt: "2026-07-15T22:12:00.000Z" },
+  "lru-cache": {
+    accepted: false,
+    note: "Failed the suite and the review: eviction order bug plus an API rename.",
+    recordedAt: "2026-07-15T22:13:00.000Z",
+  },
 };
 
 function agreementOf(humanPass, llmPass) {
@@ -321,6 +569,13 @@ function turnsFor(difficulty, passed) {
 
 function buildTranscript(spec, stub, finalCode, testOutput, passed, note) {
   const t = [];
+  const testResult = (id) => ({
+    type: "tool_result",
+    toolUseId: id,
+    tool: "run_tests",
+    content: `exit_code: ${testOutput.exitCode}\n--- stdout ---\n${testOutput.stdout}\n--- stderr ---\n${testOutput.stderr}`.slice(0, 4000),
+    isError: false,
+  });
   t.push({ type: "system", text: "[coding-agent system prompt]" });
   t.push({ type: "assistant_text", text: `I'll start by reading ${spec.entry_file} to understand the current behavior.` });
   t.push({ type: "tool_use", tool: "read_file", input: { path: spec.entry_file }, toolUseId: "tu_read" });
@@ -329,19 +584,39 @@ function buildTranscript(spec, stub, finalCode, testOutput, passed, note) {
   t.push({ type: "tool_use", tool: "write_file", input: { path: spec.entry_file, contents: finalCode }, toolUseId: "tu_write" });
   t.push({ type: "tool_result", toolUseId: "tu_write", tool: "write_file", content: `Wrote ${spec.entry_file}.`, isError: false });
   t.push({ type: "tool_use", tool: "run_tests", input: {}, toolUseId: "tu_test" });
-  t.push({
-    type: "tool_result",
-    toolUseId: "tu_test",
-    tool: "run_tests",
-    content: `exit_code: ${testOutput.exitCode}\n--- stdout ---\n${testOutput.stdout}\n--- stderr ---\n${testOutput.stderr}`.slice(0, 4000),
-    isError: false,
-  });
+  t.push(testResult("tu_test"));
+  if (!passed) {
+    // Failed tasks show a realistic rework loop: react to failures, rewrite,
+    // re-run, still fail. This is what the behavior layer measures.
+    t.push({ type: "assistant_text", text: "Some tests still fail. Let me adjust the approach and retry." });
+    t.push({ type: "tool_use", tool: "write_file", input: { path: spec.entry_file, contents: finalCode }, toolUseId: "tu_write2" });
+    t.push({ type: "tool_result", toolUseId: "tu_write2", tool: "write_file", content: `Wrote ${spec.entry_file}.`, isError: false });
+    t.push({ type: "tool_use", tool: "run_tests", input: {}, toolUseId: "tu_test2" });
+    t.push(testResult("tu_test2"));
+  }
   t.push({
     type: "assistant_text",
     text: passed ? "All tests pass. The fix is complete." : note.giveUp,
   });
   t.push({ type: "final_verification", testOutput });
   return t;
+}
+
+/** Layer-2 behavior stats from a transcript (mirrors harness/src/behavior.ts). */
+function deriveBehavior(transcript, turnsUsed, passedFallback) {
+  let toolCalls = 0, testRuns = 0, writes = 0, reworkLoops = 0;
+  let firstTestExitZero = null;
+  let seenFirstTestRun = false;
+  for (const item of transcript) {
+    if (item.type === "tool_use") {
+      toolCalls++;
+      if (item.tool === "run_tests") { testRuns++; seenFirstTestRun = true; }
+      else if (item.tool === "write_file") { writes++; if (seenFirstTestRun) reworkLoops++; }
+    } else if (item.type === "tool_result" && item.tool === "run_tests" && firstTestExitZero === null) {
+      firstTestExitZero = /exit_code:\s*0\b/.test(item.content);
+    }
+  }
+  return { toolCalls, testRuns, writes, reworkLoops, firstTryPass: firstTestExitZero ?? passedFallback, turnsUsed };
 }
 
 function buildTaskResult(taskDir, spec, scenario, withAuthorship) {
@@ -374,6 +649,8 @@ function buildTaskResult(taskDir, spec, scenario, withAuthorship) {
     testGenTokens = { input: inp, output: out, total: inp + out };
   }
 
+  const behavior = deriveBehavior(transcript, turnsUsed, passed);
+
   const attempt = {
     attempt: 0,
     passed,
@@ -387,6 +664,7 @@ function buildTaskResult(taskDir, spec, scenario, withAuthorship) {
     transcript,
     finalCode,
     ...(testAuthorship ? { testAuthorship } : {}),
+    behavior,
   };
 
   const task = {
@@ -410,10 +688,83 @@ function buildTaskResult(taskDir, spec, scenario, withAuthorship) {
     finalTestOutput: testOutput,
     finalCode,
     ...(testAuthorship ? { testAuthorship } : {}),
+    behavior,
+    ...(spec.provenance ? { provenance: spec.provenance } : {}),
     attempts: [attempt],
   };
 
   return { task, testGenTokens };
+}
+
+// ---- v0.4 summary blocks (mirror harness/src/report.ts) --------------------
+
+const CAL_THRESHOLDS = { autonomous: 0.9, supervised: 0.7, minN: 3, minNAutonomous: 10 };
+
+function wilson(agree, n) {
+  if (n === 0) return { low: 0, high: 1 };
+  const z = 1.96, p = agree / n, z2 = z * z;
+  const denom = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denom;
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / denom;
+  return { low: round4(Math.max(0, center - half)), high: round4(Math.min(1, center + half)) };
+}
+
+function calCell(agree, n) {
+  const rate = n ? round4(agree / n) : 0;
+  const t = CAL_THRESHOLDS;
+  let band;
+  if (n < t.minN) band = "insufficient_data";
+  else if (rate >= t.autonomous && n >= t.minNAutonomous) band = "autonomous";
+  else if (rate >= t.supervised) band = "supervised";
+  else band = "unsafe";
+  return { n, agree, agreementRate: rate, ci: wilson(agree, n), band };
+}
+
+function summarizeCalibration(tasks) {
+  let n = 0, agree = 0;
+  const catN = {}, catAgree = {};
+  for (const t of tasks) {
+    const ta = t.attempts[0]?.testAuthorship ?? t.testAuthorship;
+    if (!ta || !ta.human || !ta.llm) continue;
+    n++;
+    catN[t.category] = (catN[t.category] ?? 0) + 1;
+    if (ta.agreement === "agree_pass" || ta.agreement === "agree_fail") {
+      agree++;
+      catAgree[t.category] = (catAgree[t.category] ?? 0) + 1;
+    }
+  }
+  if (n === 0) return null;
+  const byCategory = {};
+  for (const c of Object.keys(catN)) byCategory[c] = calCell(catAgree[c] ?? 0, catN[c]);
+  return { overall: calCell(agree, n), byCategory, thresholds: CAL_THRESHOLDS };
+}
+
+function summarizeLayers(tasks) {
+  const withB = tasks.filter((t) => t.behavior);
+  const withO = tasks.filter((t) => t.outcome);
+  let behavior = null;
+  if (withB.length) {
+    const s = withB.reduce((a, t) => {
+      a.tool += t.behavior.toolCalls; a.rework += t.behavior.reworkLoops; a.first += t.behavior.firstTryPass ? 1 : 0; return a;
+    }, { tool: 0, rework: 0, first: 0 });
+    behavior = {
+      tasksWithData: withB.length,
+      avgToolCalls: Math.round((s.tool / withB.length) * 100) / 100,
+      avgReworkLoops: Math.round((s.rework / withB.length) * 100) / 100,
+      firstTryPassRate: round4(s.first / withB.length),
+    };
+  }
+  let outcome = null;
+  if (withO.length) {
+    outcome = {
+      tasksWithOutcome: withO.length,
+      passedAccepted: withO.filter((t) => t.passed && t.outcome.accepted).length,
+      passedButRejected: withO.filter((t) => t.passed && !t.outcome.accepted).length,
+      failedAccepted: withO.filter((t) => !t.passed && t.outcome.accepted).length,
+      failedRejected: withO.filter((t) => !t.passed && !t.outcome.accepted).length,
+    };
+  }
+  return behavior || outcome ? { behavior, outcome } : null;
 }
 
 function summarize(tasks, pricing) {
@@ -450,6 +801,7 @@ function summarize(tasks, pricing) {
 
 function makeRun(label, model, scenarios, opts = {}) {
   const withAuthorship = !!opts.withAuthorship;
+  const outcomes = opts.outcomes ?? {};
   const names = readdirSync(TASKS_DIR).filter((n) => statSync(join(TASKS_DIR, n)).isDirectory()).sort();
   let testGenTokens = { input: 0, output: 0, total: 0 };
   const tasks = names.map((name) => {
@@ -461,18 +813,25 @@ function makeRun(label, model, scenarios, opts = {}) {
       scenarios[spec.id] ?? { pass: true },
       withAuthorship,
     );
+    if (outcomes[spec.id]) task.outcome = outcomes[spec.id];
     testGenTokens = addTok(testGenTokens, tg);
     return task;
   });
   const config = {
     model, temperature: 0, maxTurns: 6, attempts: 1,
-    pricing: PRICING, label, harnessVersion: "0.2.0",
+    pricing: PRICING, label, harnessVersion: "0.4.0",
     verification: "confirmed", sandboxTimeoutMs: 30000,
     testMode: withAuthorship ? "both" : "human",
     verdictSource: "human",
   };
   const summary = summarize(tasks, PRICING);
   summary.testAuthorship = withAuthorship ? summarizeAuthorship(tasks, testGenTokens) : null;
+  summary.judgeCalibration = withAuthorship ? summarizeCalibration(tasks) : null;
+  summary.metricLayers = summarizeLayers(tasks);
+  summary.provenanceCounts = {
+    authored: tasks.filter((t) => (t.provenance?.source ?? "authored") === "authored").length,
+    captured: tasks.filter((t) => t.provenance?.source === "captured").length,
+  };
   const runId = `2026-06-20-${label}`;
   return {
     schemaVersion: 1, runId,
@@ -484,8 +843,15 @@ function makeRun(label, model, scenarios, opts = {}) {
 
 // ---- scenarios -------------------------------------------------------------
 
-// Baseline run: 12/15 pass. Three realistic failures.
+// Baseline run: 13/17 pass. Four realistic failures (word-count, token-bucket,
+// lru-cache, validate-ipv4); the two captured tasks pass.
 const baseline = {
+  "validate-ipv4": {
+    pass: false,
+    tags: [{ tag: "missed_edge_case", justification: "Validated octet count, digits, and range but never rejected leading zeros, so '01.2.3.4' is accepted." }],
+    note: { reasoning: "I'll split on dots and check each octet is a number in 0-255.", giveUp: "Range and count tests pass, but the leading-zero cases still fail; I never rejected '01'-style octets." },
+    candidate: "def is_valid_ipv4(s):\n    parts = s.split('.')\n    if len(parts) != 4:\n        return False\n    for p in parts:\n        if not p.isdigit():\n            return False\n        if int(p) > 255:\n            return False\n    return True\n",
+  },
   "word-count-edgecases": {
     pass: false,
     tags: [{ tag: "missed_edge_case", justification: "Lowercased and split on whitespace but never stripped trailing punctuation, so 'cat,' and 'cat' counted separately." }],
@@ -524,11 +890,21 @@ for (const [label, scen, withAuthorship] of [
   ["sonnet-baseline", baseline, true],
   ["sonnet-v2-prompt", v2, false],
 ]) {
-  const run = makeRun(label, "claude-sonnet-4-6", scen, { withAuthorship });
+  const run = makeRun(label, "claude-sonnet-4-6", scen, {
+    withAuthorship,
+    // Layer-3 outcomes ride on the baseline run (the comparison showcase).
+    outcomes: withAuthorship ? DEMO_OUTCOMES : {},
+  });
   const path = join(RESULTS_DIR, `${run.runId}.json`);
   writeFileSync(path, JSON.stringify(run, null, 2));
   const ta = run.summary.testAuthorship;
   const taNote = ta ? `  authorship: ${ta.llmMissed} llm-missed / ${ta.comparedTasks} compared` : "";
-  console.log(`wrote ${path}  pass@1 ${run.summary.passedAt1}/${run.summary.totalTasks}${taNote}`);
+  const jc = run.summary.judgeCalibration;
+  const jcNote = jc
+    ? `\n  calibration: ${Object.entries(jc.byCategory).map(([c, x]) => `${c}=${x.band}(${x.agree}/${x.n})`).join(" ")}`
+    : "";
+  const ml = run.summary.metricLayers;
+  const mlNote = ml?.outcome ? `\n  outcomes: passedButRejected=${ml.outcome.passedButRejected} of ${ml.outcome.tasksWithOutcome} recorded` : "";
+  console.log(`wrote ${path}  pass@1 ${run.summary.passedAt1}/${run.summary.totalTasks}${taNote}${jcNote}${mlNote}`);
 }
 console.log("\nDemo data generated. Run `node scripts/sync-results.mjs` to publish to the dashboard.");
