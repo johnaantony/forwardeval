@@ -1,8 +1,13 @@
 #!/usr/bin/env node
-import "dotenv/config";
+import dotenv from "dotenv";
 import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+
+// Load the repo-root .env (where the quickstart puts it), then fall back to a
+// local one; real environment variables always win over both.
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", ".env") });
+dotenv.config();
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { loadTasks } from "./tasks.js";

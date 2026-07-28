@@ -31,12 +31,17 @@
  *     "outcome": { "accepted": true, "note": "..." }   // optional, feeds layer 3
  *   }
  */
-import "dotenv/config";
+import dotenv from "dotenv";
 import Anthropic from "@anthropic-ai/sdk";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// Load the repo-root .env (where the quickstart puts it), then fall back to a
+// local one; real environment variables always win over both.
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", ".env") });
+dotenv.config();
 import { generateLlmTests } from "./gen-tests.js";
 import { DEFAULT_MODEL } from "./config.js";
 import type { Category, Difficulty, TaskOutcome, TaskSpec } from "./types.js";

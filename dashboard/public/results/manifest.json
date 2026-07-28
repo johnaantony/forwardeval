@@ -18,5 +18,15 @@
     "passAt1Rate": 0.9412,
     "totalTasks": 17,
     "demo": true
+  },
+  {
+    "runId": "2026-07-28-sonnet5-baseline-be74d362",
+    "file": "2026-07-28-sonnet5-baseline-be74d362.json",
+    "label": "sonnet5-baseline",
+    "model": "claude-sonnet-5",
+    "startedAt": "2026-07-28T22:23:51.215Z",
+    "passAt1Rate": 1,
+    "totalTasks": 17,
+    "demo": false
   }
 ]
