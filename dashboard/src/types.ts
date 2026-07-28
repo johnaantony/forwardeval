@@ -73,6 +73,63 @@ export type TranscriptItem =
   | { type: "tool_result"; toolUseId: string; tool: string; content: string; isError: boolean }
   | { type: "final_verification"; testOutput: TestOutput };
 
+// ---- v0.4: metric layers, outcomes, provenance, calibration ----
+
+export interface BehaviorStats {
+  toolCalls: number;
+  testRuns: number;
+  writes: number;
+  reworkLoops: number;
+  firstTryPass: boolean;
+  turnsUsed: number;
+}
+
+export interface TaskOutcome {
+  accepted: boolean;
+  reworkRequired?: boolean;
+  note?: string;
+  recordedAt?: string;
+}
+
+export interface TaskProvenance {
+  source: "authored" | "captured";
+  capturedAt?: string;
+  reviewStatus?: "human_reviewed" | "unreviewed";
+  sessionRef?: string;
+}
+
+export type CalibrationBand = "autonomous" | "supervised" | "unsafe" | "insufficient_data";
+
+export interface CalibrationCell {
+  n: number;
+  agree: number;
+  agreementRate: number;
+  ci: { low: number; high: number };
+  band: CalibrationBand;
+}
+
+export interface JudgeCalibration {
+  overall: CalibrationCell;
+  byCategory: Record<string, CalibrationCell>;
+  thresholds: { autonomous: number; supervised: number; minN: number; minNAutonomous: number };
+}
+
+export interface MetricLayersSummary {
+  behavior: {
+    tasksWithData: number;
+    avgToolCalls: number;
+    avgReworkLoops: number;
+    firstTryPassRate: number;
+  } | null;
+  outcome: {
+    tasksWithOutcome: number;
+    passedAccepted: number;
+    passedButRejected: number;
+    failedAccepted: number;
+    failedRejected: number;
+  } | null;
+}
+
 export interface AttemptResult {
   attempt: number;
   passed: boolean;
@@ -86,6 +143,7 @@ export interface AttemptResult {
   transcript: TranscriptItem[];
   finalCode: string;
   testAuthorship?: TestAuthorshipResult;
+  behavior?: BehaviorStats;
 }
 
 export interface TaskResult {
@@ -109,6 +167,9 @@ export interface TaskResult {
   finalTestOutput: TestOutput;
   finalCode: string;
   testAuthorship?: TestAuthorshipResult;
+  behavior?: BehaviorStats;
+  outcome?: TaskOutcome;
+  provenance?: TaskProvenance;
   attempts: AttemptResult[];
 }
 
@@ -136,6 +197,9 @@ export interface RunSummary {
   wastedCost: number | null;
   totalWallClockMs: number;
   testAuthorship?: TestAuthorshipSummary | null;
+  judgeCalibration?: JudgeCalibration | null;
+  metricLayers?: MetricLayersSummary | null;
+  provenanceCounts?: { authored: number; captured: number };
 }
 
 export interface RunConfig {

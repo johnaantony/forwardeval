@@ -4,8 +4,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { loadTasks } from "./tasks.js";
 import { runAgent } from "./agent.js";
+import { deriveBehavior } from "./behavior.js";
 import { verify } from "./verify.js";
 import { classifyFailure } from "./classifier.js";
 import { generateLlmTests } from "./gen-tests.js";
@@ -27,6 +29,7 @@ import type {
   Pricing,
   RunConfig,
   RunResult,
+  TaskOutcome,
   TaskResult,
   TestAgreement,
   TestAuthorshipResult,
@@ -35,6 +38,20 @@ import type {
   TokenUsage,
   VerdictSource,
 } from "./types.js";
+
+/**
+ * Layer-3 outcomes sidecar (v0.4): { "<taskId>": { accepted, note, ... } }.
+ * Recorded by a human via `node scripts/outcome.mjs`; absent file = no layer-3.
+ */
+async function loadOutcomes(path: string): Promise<Record<string, TaskOutcome>> {
+  try {
+    const raw = await readFile(path, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, TaskOutcome>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 /** Classify the human-vs-LLM verdicts on the same agent solution. */
 function agreementOf(humanPass: boolean, llmPass: boolean): TestAgreement {
@@ -97,7 +114,9 @@ async function main() {
         `  --input-price <usd>     USD per 1M input tokens (Cost view)\n` +
         `  --output-price <usd>    USD per 1M output tokens (Cost view)\n` +
         `  --no-pricing            Disable the Cost view (Tokens only)\n` +
-        `  --timeout <ms>          Sandbox timeout per test run (default ${DEFAULT_SANDBOX_TIMEOUT_MS})\n`,
+        `  --timeout <ms>          Sandbox timeout per test run (default ${DEFAULT_SANDBOX_TIMEOUT_MS})\n` +
+        `  --outcomes <file>       Layer-3 outcomes sidecar (default <repo>/outcomes.json;\n` +
+        `                          record entries with \`node scripts/outcome.mjs\`)\n`,
     );
     process.exit(subcommand ? 1 : 0);
   }
@@ -141,6 +160,8 @@ async function main() {
 
   const tasksDir = (args["tasks-dir"] as string) ?? join(REPO_ROOT, "tasks");
   const resultsDir = (args["results-dir"] as string) ?? join(REPO_ROOT, "results");
+  const outcomesPath = (args.outcomes as string) ?? join(REPO_ROOT, "outcomes.json");
+  const outcomes = await loadOutcomes(outcomesPath);
 
   const onlyFilter = typeof args.only === "string" ? args.only.split(",") : null;
 
@@ -283,6 +304,7 @@ async function main() {
         transcript: agentOut.transcript,
         finalCode: agentOut.finalCode,
         testAuthorship,
+        behavior: deriveBehavior(agentOut.transcript, agentOut.turnsUsed, passed),
       });
     }
 
@@ -315,6 +337,9 @@ async function main() {
       finalTestOutput: rep.finalTestOutput,
       finalCode: rep.finalCode,
       testAuthorship: rep.testAuthorship,
+      behavior: rep.behavior,
+      outcome: outcomes[spec.id],
+      provenance: spec.provenance,
       attempts: attemptResults,
     });
 
@@ -355,6 +380,22 @@ async function main() {
     console.log(`  pass@1 under human suite: ${ta.humanPassAt1}   under LLM suite: ${ta.llmPassAt1}`);
     console.log(`  test cases authored - human: ${ta.humanTestCount}  LLM: ${ta.llmTestCount}`);
     console.log(`  LLM test-gen cost: ${ta.testGenTokens.total.toLocaleString()} tok${ta.testGenCost !== null ? " ($" + ta.testGenCost.toFixed(4) + ")" : ""}`);
+  }
+  const jc = summary.judgeCalibration;
+  if (jc) {
+    console.log(`\n── Judge calibration (per-category trust) ───`);
+    for (const [cat, c] of Object.entries(jc.byCategory)) {
+      console.log(
+        `  ${cat.padEnd(12)} ${c.band.padEnd(17)} agreement ${(c.agreementRate * 100).toFixed(0)}% (n=${c.n}, 95% CI ${(c.ci.low * 100).toFixed(0)}-${(c.ci.high * 100).toFixed(0)}%)`,
+      );
+    }
+  }
+  const ml = summary.metricLayers;
+  if (ml?.outcome) {
+    console.log(`\n── Outcome layer (human acceptance) ─────────`);
+    console.log(
+      `  passed+accepted ${ml.outcome.passedAccepted}  PASSED-BUT-REJECTED ${ml.outcome.passedButRejected}  failed+accepted ${ml.outcome.failedAccepted}  failed+rejected ${ml.outcome.failedRejected}`,
+    );
   }
   console.log(`\nWrote ${path}`);
   console.log(`Next: run \`node scripts/sync-results.mjs\` then start the dashboard.\n`);

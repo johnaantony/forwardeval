@@ -98,7 +98,7 @@ export default function App() {
                   : t === "tasks"
                     ? "Task explorer"
                     : t === "authorship"
-                      ? "Test authorship"
+                      ? "Judge calibration"
                       : "Overview"}
               </button>
             ))}

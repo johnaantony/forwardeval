@@ -44,6 +44,54 @@ A second, equally deliberate choice: ForwardEval reports **accuracy per token**,
 
 ---
 
+## What's new in 0.4: closing the loop
+
+Every 0.4 capability answers one question: **where does the metric say green when the truth is red?** Version 0.3 already answered one form of it (`llm_missed`: LLM-written tests pass code the expert suite catches). 0.4 extends the same instinct two layers out, then lets reality correct the suite:
+
+| Layer | The green claim | The red truth | Metric |
+|---|---|---|---|
+| Test authorship (0.3) | LLM-written tests pass | Expert tests fail | `llm_missed` |
+| Judge calibration (new) | An LLM judge agrees with the verdict | It only agrees on some task types | agreement band per category |
+| Outcome (new) | Tests pass | A human rejected the change anyway | `passedButRejected` |
+| Capture (new) | The suite is green | The suite never asked the question | provenance: captured vs authored |
+
+### Judge calibration: a trust score instead of a rule
+
+**Problem:** "never use an LLM judge" is a good default and a bad absolute; teams use judges anyway, with no evidence about when they can. **Answer:** ForwardEval already runs an expert suite and an LLM-authored suite on the same solution, so it turns that comparison into a per-category trust score with a Wilson 95% interval and a band: `autonomous` (a judge can gate unsupervised), `supervised` (judge triages, human confirms), `unsafe` (deterministic only), or `insufficient_data` (too few samples to claim anything, said out loud). The Judge calibration tab is the answer; the authorship table below it is the evidence.
+
+### Metric layers: correctness, behavior, outcome
+
+**Problem:** a binary pass/fail hides how the agent got there and whether a human kept the result. **Answer:** three layers per task. L1 is the deterministic verdict (unchanged). L2 derives behavior from the transcript already being recorded: tool calls, rework loops after the first test run, first-try pass rate. L3 records what only a person can say, with one command:
+
+```bash
+node scripts/outcome.mjs --task word-count-edgecases --rejected --note "correct but rewrote the public API"
+```
+
+The cross-layer headline is **passed but rejected**: tests green, human said no. It is the same shape of insight as `llm_missed`, one layer further out, and the honest counterweight to any pure test-verdict story.
+
+### Session capture: real sessions become eval cases
+
+**Problem:** a frozen, synthetic suite keeps grading yesterday's target and reports green with total confidence, while every real coding session produces exactly what the suite lacks: a task someone cared about and a definition of done that emerged from doing the work. **Answer:**
+
+```bash
+npm run capture -- --session examples/captured-session.example.json
+```
+
+Capture scaffolds a task from a real session (prompt, starting code, final code), drafts candidate assertions, and stops. **A human ratifies what "done" means** before the case can grade anything: review the draft, rename it to `test_suite.py`, flip `reviewStatus` to `human_reviewed`, and pass the sanity gate (stub fails, reference passes). That review step is the design, not a limitation: the tool drafts, the person who did the work decides what the result must guarantee. Two of the bundled tasks (`slugify-url-handles`, `retry-with-backoff`) arrived through exactly this path, and the dashboard badges them `captured`.
+
+```mermaid
+flowchart LR
+  S[real coding session] --> C[capture]
+  C --> D[draft suite]
+  D --> H{human ratifies}
+  H --> T[task joins the suite]
+  T --> R[eval run]
+  R --> O[human outcome<br/>accepted or rejected]
+  O -->|passed but rejected:<br/>expand the suite| C
+```
+
+---
+
 ## What it proves
 
 1. **Agentic eval design.** The agent works in a real loop (read, edit, run tests, react) with tool use, not one-shot prompting. The transcript shows every tool call and its result.
@@ -101,6 +149,7 @@ In the demo files the **test verdicts are real** (Python is actually executed ag
 | `--only <id,id>` | all | Run a subset of tasks |
 | `--input-price` / `--output-price` | model list price | USD per 1M tokens (Cost view) |
 | `--no-pricing` | off | Disable the Cost view (Tokens still shown) |
+| `--outcomes <file>` | `outcomes.json` | Layer-3 human-acceptance sidecar merged into results (record entries with `node scripts/outcome.mjs`) |
 
 ---
 
@@ -128,7 +177,7 @@ The loop, per task: the harness frames Claude as a coding agent, gives it the pr
 
 ## Task taxonomy and difficulty
 
-15 self-contained Python tasks (stdlib plus `unittest`, zero pip installs) spread across:
+17 self-contained Python tasks (stdlib plus `unittest`, zero pip installs): 15 hand-authored plus 2 captured from real sessions via `npm run capture` (badged `captured` in the dashboard). Spread across:
 
 - **Categories:** `bug_fix`, `feature_add`, `refactor`, `edge_cases`, `algo`
 - **Difficulty:** `easy`, `medium`, `hard`
@@ -205,7 +254,9 @@ In the bundled demo run, the LLM-authored suites pass two solutions the expert s
 
 ## Limitations
 
-- 15 single-file tasks are not repo-level engineering. This is a faithful *miniature* of SWE-bench, not a replacement.
+- 17 single-file tasks are not repo-level engineering. This is a faithful *miniature* of SWE-bench, not a replacement.
+- Per-category calibration bands rest on small samples today (3 to 5 compared tasks per category). The Wilson intervals and the `insufficient_data` band exist precisely so the report cannot over-claim; capture is how the samples grow.
+- Layer-3 outcomes are only as good as the humans recording them; an unrecorded outcome is a blind spot, not an acceptance.
 - The agent's `run_tests` and the final verdict run the same suite; "hidden" means hidden from the agent's *file reads*, not from execution.
 - The OS sandbox is best-effort. For untrusted code at scale, run it inside a container.
 - Demo token counts are simulated; real runs record true API usage.

@@ -19,6 +19,14 @@ export function Comparison({ a, b }: { a: RunResult; b: RunResult }) {
           <DeltaStat label="Cost / solve" base={fmtCost(a.summary.costPerSolve)} cand={fmtCost(b.summary.costPerSolve)} delta={(b.summary.costPerSolve ?? 0) - (a.summary.costPerSolve ?? 0)} fmt={(n) => `${n > 0 ? "+" : ""}${fmtCost(Math.abs(n))}`} good="down" />
           <DeltaStat label="Tasks passed" base={String(a.summary.passedAt1)} cand={String(b.summary.passedAt1)} delta={b.summary.passedAt1 - a.summary.passedAt1} fmt={(n) => `${n > 0 ? "+" : ""}${n}`} good="up" />
         </div>
+        {a.summary.judgeCalibration && b.summary.judgeCalibration && (
+          <p className="mt-3 text-xs text-slate-400">
+            Judge agreement drift: {pct(a.summary.judgeCalibration.overall.agreementRate)} →{" "}
+            {pct(b.summary.judgeCalibration.overall.agreementRate)}. A drop means the model or
+            prompt change degraded how far LLM-authored tests can be trusted - recheck the
+            per-category bands before relying on a judge.
+          </p>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

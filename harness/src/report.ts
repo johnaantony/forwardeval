@@ -6,10 +6,135 @@ import type {
   RunSummary,
   TaskResult,
   RunConfig,
+  CalibrationBand,
+  CalibrationCell,
   CategoryRollup,
+  JudgeCalibration,
+  MetricLayersSummary,
   TestAuthorshipSummary,
   TokenUsage,
 } from "./types.js";
+
+// ---------------------------------------------------------------------------
+// v0.4: judge calibration
+// ---------------------------------------------------------------------------
+
+/**
+ * Band cutoffs. Recorded verbatim in the output so every report is
+ * self-describing. minN keeps small samples honest: below it we say
+ * "insufficient data" instead of pretending three tasks are a measurement.
+ */
+export const CALIBRATION_THRESHOLDS = {
+  autonomous: 0.9,
+  supervised: 0.7,
+  minN: 3,
+  minNAutonomous: 10,
+};
+
+/** Wilson 95% score interval - honest uncertainty for small n. */
+function wilson(agree: number, n: number): { low: number; high: number } {
+  if (n === 0) return { low: 0, high: 1 };
+  const z = 1.96;
+  const p = agree / n;
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denom;
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / denom;
+  return { low: round4(Math.max(0, center - half)), high: round4(Math.min(1, center + half)) };
+}
+
+function bandFor(rate: number, n: number): CalibrationBand {
+  const t = CALIBRATION_THRESHOLDS;
+  if (n < t.minN) return "insufficient_data";
+  if (rate >= t.autonomous && n >= t.minNAutonomous) return "autonomous";
+  if (rate >= t.supervised) return "supervised";
+  return "unsafe";
+}
+
+function cell(agree: number, n: number): CalibrationCell {
+  const rate = n ? round4(agree / n) : 0;
+  return { n, agree, agreementRate: rate, ci: wilson(agree, n), band: bandFor(rate, n) };
+}
+
+/**
+ * Turn the per-task authorship comparison into per-category trust scores:
+ * WHERE can an LLM-authored suite be trusted, instead of a blanket yes/no.
+ * The agreement being measured is "LLM suite verdict == expert suite verdict"
+ * on the same solution, which is exactly the error mode of an LLM judge.
+ */
+export function summarizeJudgeCalibration(
+  tasks: TaskResult[],
+): JudgeCalibration | null {
+  let n = 0;
+  let agree = 0;
+  const catN: Record<string, number> = {};
+  const catAgree: Record<string, number> = {};
+
+  for (const t of tasks) {
+    const ta = t.attempts[0]?.testAuthorship ?? t.testAuthorship;
+    if (!ta || !ta.human || !ta.llm) continue;
+    n += 1;
+    catN[t.category] = (catN[t.category] ?? 0) + 1;
+    const agreed = ta.agreement === "agree_pass" || ta.agreement === "agree_fail";
+    if (agreed) {
+      agree += 1;
+      catAgree[t.category] = (catAgree[t.category] ?? 0) + 1;
+    }
+  }
+  if (n === 0) return null;
+
+  const byCategory: Record<string, CalibrationCell> = {};
+  for (const c of Object.keys(catN)) {
+    byCategory[c] = cell(catAgree[c] ?? 0, catN[c]);
+  }
+  return {
+    overall: cell(agree, n),
+    byCategory,
+    thresholds: CALIBRATION_THRESHOLDS,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// v0.4: metric layers (behavior + outcome)
+// ---------------------------------------------------------------------------
+
+export function summarizeMetricLayers(tasks: TaskResult[]): MetricLayersSummary | null {
+  const withBehavior = tasks.filter((t) => t.behavior);
+  const withOutcome = tasks.filter((t) => t.outcome);
+  if (withBehavior.length === 0 && withOutcome.length === 0) return null;
+
+  let behavior: MetricLayersSummary["behavior"] = null;
+  if (withBehavior.length > 0) {
+    const sum = withBehavior.reduce(
+      (acc, t) => {
+        acc.tool += t.behavior!.toolCalls;
+        acc.rework += t.behavior!.reworkLoops;
+        acc.firstTry += t.behavior!.firstTryPass ? 1 : 0;
+        return acc;
+      },
+      { tool: 0, rework: 0, firstTry: 0 },
+    );
+    behavior = {
+      tasksWithData: withBehavior.length,
+      avgToolCalls: round2(sum.tool / withBehavior.length),
+      avgReworkLoops: round2(sum.rework / withBehavior.length),
+      firstTryPassRate: round4(sum.firstTry / withBehavior.length),
+    };
+  }
+
+  let outcome: MetricLayersSummary["outcome"] = null;
+  if (withOutcome.length > 0) {
+    outcome = {
+      tasksWithOutcome: withOutcome.length,
+      passedAccepted: withOutcome.filter((t) => t.passed && t.outcome!.accepted).length,
+      passedButRejected: withOutcome.filter((t) => t.passed && !t.outcome!.accepted).length,
+      failedAccepted: withOutcome.filter((t) => !t.passed && t.outcome!.accepted).length,
+      failedRejected: withOutcome.filter((t) => !t.passed && !t.outcome!.accepted).length,
+    };
+  }
+
+  return { behavior, outcome };
+}
 
 /**
  * Roll up the human-vs-LLM test authorship comparison across tasks.
@@ -137,6 +262,13 @@ export function summarize(
     wastedCost: wastedCost,
     totalWallClockMs,
     testAuthorship: summarizeTestAuthorship(tasks, config, testGenTokens),
+    judgeCalibration:
+      config.testMode === "human" ? null : summarizeJudgeCalibration(tasks),
+    metricLayers: summarizeMetricLayers(tasks),
+    provenanceCounts: {
+      authored: tasks.filter((t) => (t.provenance?.source ?? "authored") === "authored").length,
+      captured: tasks.filter((t) => t.provenance?.source === "captured").length,
+    },
   };
 }
 

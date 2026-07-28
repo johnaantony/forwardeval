@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type {
+  CalibrationBand,
   RunResult,
   TaskResult,
   TestAgreement,
@@ -8,6 +9,32 @@ import type {
 } from "../types";
 import { Card, Kpi, PassPill, SectionTitle, Tag } from "../ui";
 import { fmtCost, fmtTokens, pct } from "../lib";
+
+const BAND_META: Record<
+  CalibrationBand,
+  { label: string; cls: string; action: string }
+> = {
+  autonomous: {
+    label: "Autonomous",
+    cls: "bg-pass/15 text-pass border-pass/30",
+    action: "A judge can gate this category unsupervised.",
+  },
+  supervised: {
+    label: "Supervised",
+    cls: "bg-warn/15 text-warn border-warn/30",
+    action: "Use a judge for triage; a human confirms before shipping.",
+  },
+  unsafe: {
+    label: "Unsafe",
+    cls: "bg-fail/15 text-fail border-fail/30",
+    action: "Deterministic verification only. Do not trust a judge here.",
+  },
+  insufficient_data: {
+    label: "Insufficient data",
+    cls: "bg-ink-700 text-slate-400 border-ink-500",
+    action: "Too few compared tasks to say anything honest yet.",
+  },
+};
 
 const AGREEMENT_META: Record<
   TestAgreement,
@@ -54,8 +81,69 @@ export function TestAuthorship({ run }: { run: RunResult }) {
     );
   }
 
+  const jc = run.summary.judgeCalibration;
+
   return (
     <div className="space-y-6">
+      {/* Trust scores: the ANSWER this tab exists to give */}
+      {jc && (
+        <Card className="p-4">
+          <SectionTitle hint={`"Can an LLM judge be trusted here?" answered with evidence instead of a blanket rule. Agreement = LLM suite verdict matches the expert suite verdict on the same solution. Bands: autonomous at ${pct(jc.thresholds.autonomous)}+ with n>=${jc.thresholds.minNAutonomous}; supervised at ${pct(jc.thresholds.supervised)}+; below that unsafe; fewer than ${jc.thresholds.minN} samples = insufficient data. Small samples show wide intervals on purpose.`}>
+            ⚖️ Judge trust score, by task category
+          </SectionTitle>
+          <table className="w-full text-sm">
+            <thead className="text-xs text-slate-400">
+              <tr>
+                <th className="px-2 py-1.5 text-left font-medium">Category</th>
+                <th className="px-2 py-1.5 text-left font-medium">Band</th>
+                <th className="px-2 py-1.5 text-left font-medium">Agreement</th>
+                <th className="px-2 py-1.5 text-left font-medium">95% CI</th>
+                <th className="px-2 py-1.5 text-left font-medium">What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(jc.byCategory).map(([cat, c]) => {
+                const m = BAND_META[c.band];
+                return (
+                  <tr key={cat} className="border-t border-ink-700">
+                    <td className="px-2 py-2 text-slate-200">{cat.replace("_", " ")}</td>
+                    <td className="px-2 py-2">
+                      <span className={`inline-block rounded border px-2 py-0.5 text-[11px] font-semibold ${m.cls}`}>
+                        {m.label}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 tabular-nums text-slate-300">
+                      {pct(c.agreementRate)} <span className="text-slate-500">({c.agree}/{c.n})</span>
+                    </td>
+                    <td className="px-2 py-2 tabular-nums text-slate-400">
+                      {pct(c.ci.low)} - {pct(c.ci.high)}
+                    </td>
+                    <td className="px-2 py-2 text-xs text-slate-400">{m.action}</td>
+                  </tr>
+                );
+              })}
+              <tr className="border-t border-ink-600 bg-ink-900/40">
+                <td className="px-2 py-2 font-medium text-slate-200">Overall</td>
+                <td className="px-2 py-2">
+                  <span className={`inline-block rounded border px-2 py-0.5 text-[11px] font-semibold ${BAND_META[jc.overall.band].cls}`}>
+                    {BAND_META[jc.overall.band].label}
+                  </span>
+                </td>
+                <td className="px-2 py-2 tabular-nums text-slate-300">
+                  {pct(jc.overall.agreementRate)} <span className="text-slate-500">({jc.overall.agree}/{jc.overall.n})</span>
+                </td>
+                <td className="px-2 py-2 tabular-nums text-slate-400">
+                  {pct(jc.overall.ci.low)} - {pct(jc.overall.ci.high)}
+                </td>
+                <td className="px-2 py-2 text-xs text-slate-400">
+                  The per-category rows are the actionable answer; the overall number hides where the judge fails.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </Card>
+      )}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Kpi

@@ -86,6 +86,79 @@ export function Overview({ run }: { run: RunResult }) {
         </Card>
       )}
 
+      {/* v0.4: metric layers (behavior + outcome on top of pass/fail) */}
+      {s.metricLayers && (
+        <Card
+          className={`p-4 ${
+            (s.metricLayers.outcome?.passedButRejected ?? 0) > 0 ? "border-fail/30 bg-fail/5" : ""
+          }`}
+        >
+          <SectionTitle hint="Three layers, one honest picture: L1 = did the tests pass; L2 = how the agent got there (from the transcript); L3 = did a human actually keep the result (recorded with scripts/outcome.mjs). The alarm cell is passed-but-rejected: tests said green, the human said no - the exact insight tests alone cannot reach.">
+            📚 Metric layers: correctness, behavior, outcome
+          </SectionTitle>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-ink-600 bg-ink-900/40 p-3">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">L1 · Correctness</div>
+              <div className="mt-1 text-xl font-bold tabular-nums text-white">{pct(s.passAt1Rate)}</div>
+              <div className="mt-0.5 text-[11px] text-slate-500">
+                deterministic test verdict · {s.passedAt1}/{s.totalTasks} tasks
+              </div>
+            </div>
+            {s.metricLayers.behavior && (
+              <div className="rounded-lg border border-ink-600 bg-ink-900/40 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-slate-400">L2 · Behavior</div>
+                <div className="mt-1 text-xl font-bold tabular-nums text-white">
+                  {pct(s.metricLayers.behavior.firstTryPassRate)}
+                  <span className="ml-1 text-xs font-normal text-slate-400">first-try pass</span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-slate-500">
+                  avg {s.metricLayers.behavior.avgToolCalls} tool calls · {s.metricLayers.behavior.avgReworkLoops} rework loops/task
+                </div>
+              </div>
+            )}
+            {s.metricLayers.outcome ? (
+              <div
+                className={`rounded-lg border p-3 ${
+                  s.metricLayers.outcome.passedButRejected > 0
+                    ? "border-fail/40 bg-fail/10"
+                    : "border-ink-600 bg-ink-900/40"
+                }`}
+              >
+                <div className="text-[11px] uppercase tracking-wide text-slate-400">L3 · Outcome</div>
+                <div
+                  className={`mt-1 text-xl font-bold tabular-nums ${
+                    s.metricLayers.outcome.passedButRejected > 0 ? "text-fail" : "text-white"
+                  }`}
+                >
+                  {s.metricLayers.outcome.passedButRejected}
+                  <span className="ml-1 text-xs font-normal text-slate-400">passed but rejected</span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-slate-500">
+                  of {s.metricLayers.outcome.tasksWithOutcome} human-recorded outcomes ·{" "}
+                  {s.metricLayers.outcome.passedAccepted} accepted · {s.metricLayers.outcome.failedAccepted} failed-but-accepted
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-ink-600 p-3 text-[11px] text-slate-500">
+                <div className="text-[11px] uppercase tracking-wide text-slate-400">L3 · Outcome</div>
+                <div className="mt-1">
+                  No human outcomes recorded yet. After reviewing a result, run{" "}
+                  <code className="font-mono">node scripts/outcome.mjs --task &lt;id&gt; --accepted|--rejected</code>
+                </div>
+              </div>
+            )}
+          </div>
+          {s.provenanceCounts && s.provenanceCounts.captured > 0 && (
+            <div className="mt-3 text-xs text-slate-400">
+              <Tag tone="accent">closed loop</Tag>{" "}
+              {s.provenanceCounts.captured} of {s.totalTasks} tasks were captured from real sessions
+              (the rest are hand-authored). Captured cases keep the suite growing where reality, not
+              imagination, says it should.
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Token ROI panel */}
       <Card className="p-4">
         <SectionTitle hint="Accuracy per token. Most coding benchmarks report accuracy alone; ROI asks 'better at what price?'">

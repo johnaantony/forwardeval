@@ -51,6 +51,10 @@ Layer 2 needs a real running app, a telemetry SDK, and live users to be more tha
 
 ---
 
+## Shipped since this was written
+
+- **v0.4 landed the closed-loop foundation**: session capture with human ratification, task provenance, layer-2 behavior stats, layer-3 human outcomes, and per-category judge calibration. See [CHANGELOG.md](CHANGELOG.md) and [PLAN_v0.4.md](PLAN_v0.4.md). The remaining Horizon 1 and Layer 2 items below still stand.
+
 ## Near-term backlog (small, high-leverage)
 
 - Forced self-review turn before "done" (see FINDINGS idea #1).
