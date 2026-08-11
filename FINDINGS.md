@@ -1,51 +1,96 @@
 # FINDINGS
 
-> **Data source:** the committed **demo runs** (`results/2026-06-20-sonnet-baseline.json` and `results/2026-06-20-sonnet-v2-prompt.json`). In these files the **pass/fail verdicts and test output are real** (Python executed against the hidden suites); token counts and transcripts are simulated. Regenerate this document from a live run with `npm run eval -- --label sonnet-baseline`, then update the numbers below. The *shape* of the analysis (and the improvement ideas) is what this file is meant to demonstrate.
+> **Data source:** the first real run, `results/2026-07-28-sonnet5-baseline-be74d362.json`. 17 tasks, model `claude-sonnet-5`, `--tests both`, max-turns 6, one attempt per task. Everything below is measured: real transcripts, real API token counts, real model-authored test suites, real deterministic verdicts. The seeded demo runs (`results/2026-06-20-*.json`) stay in the repo so the dashboard works without an API key; the section "What the demo data got wrong" compares the two deliberately.
 
-## Headline (baseline run)
+## Headline: the suite saturates
 
-- **pass@1: 12/15 (80.0%)**, model `claude-sonnet-4-6`, max-turns 6, temperature 0.
-- **Cost/solve:** ~$0.09 · **wasted spend** (tokens on the 3 failures): ~13.7k tokens.
-- A prompt-tuned candidate (`sonnet-v2-prompt`) reached **14/15 (93%)**, but it introduced **1 regression** while fixing 3 tasks (see "Run comparison").
+- **pass@1: 17/17 (100%)**, every category, every difficulty tier, including all three `hard` tasks.
+- **$0.32 for the whole run**, $0.0189 per solve, 4,919 tokens per solve, **zero wasted tokens** (nothing failed, so no budget was spent on a task that did not land).
+- **1.9 minutes** of wall clock for the full suite.
+- **16 of 17 tasks finished in 3 turns**: read the stub, write the solution, run the tests, done.
 
-## Pass rate by difficulty (the clearest signal)
+A perfect score is not a good benchmark result. It is the end of a benchmark's useful life. **This suite can no longer tell two frontier models apart**, and a suite that cannot separate candidates cannot inform a decision. That is the single most important finding here, and it is worth more than the 100% is.
 
-| Difficulty | Pass | Rate |
+This is benchmark saturation in miniature, the same dynamic that retired HumanEval and MBPP as frontier signals. It arrived after 17 tasks instead of 164, but the mechanism is identical: tasks authored against one generation of model capability stop discriminating against the next one.
+
+**What follows from it:** the roadmap's Horizon 1 (repo-level, multi-file tasks) is no longer a nice-to-have, it is the only way this instrument stays alive. Single-file, single-function tasks are solved. The remaining headroom is in tasks with cross-file state, ambiguous specs, and failure modes that only appear at integration.
+
+## Where the difficulty actually was
+
+Pass rate says nothing when everything passes, so the discriminating signal has to come from the behavior layer instead.
+
+| Signal | Value |
+|---|---|
+| First-try pass rate | 94.1% (16 of 17) |
+| Average tool calls per task | 3.18 |
+| Average rework loops | 0.06 |
+
+Exactly one task required rework, and it was not one of the `hard` ones:
+
+**`snake-to-camel` (easy, edge_cases)** took 6 turns, 2 test runs and 2 writes, the only task in the suite where the agent had to respond to a failing test and try again. Every `hard` task passed on the first attempt in 3 turns.
+
+**The lesson: the difficulty labels no longer predict effort.** Difficulty was assigned by human intuition about what looks hard (state machines, caches, rate limiters). The agent's actual friction sat on an "easy" string-manipulation task with an under-specified edge case. When correctness saturates, behavior data is the only thing left that ranks tasks, and it ranks them differently than the labels do.
+
+## Judge calibration: the LLM suites were pessimistic, not permissive
+
+The run authored a fresh test suite with the model for all 17 tasks (287 LLM-written tests against 136 expert-written ones) and compared verdicts on the same solutions.
+
+| Metric | Value |
+|---|---|
+| Agreement | 15/17 (**88.2%**) |
+| Wilson 95% interval | 65.7% to 96.7% |
+| Overall band | `supervised` |
+| `llm_missed` (LLM passed, expert failed) | **0** |
+| `llm_stricter` (LLM failed, expert passed) | **2** |
+| pass@1 if the expert suite were the gate | 17/17 |
+| pass@1 if the LLM suite were the gate | 15/17 |
+
+**Nothing reached the `autonomous` band**, which requires both 90% agreement and n >= 10 in a category. With 17 tasks across 5 categories, per-category n runs 2 to 5, so most cells honestly report `insufficient_data` or a `supervised` band with an interval wide enough to be useless for a gating decision. That is the correct answer, not a disappointing one: **17 tasks cannot license an unsupervised LLM gate**, and the report says so instead of implying otherwise.
+
+### Both disagreements were the LLM inventing a requirement
+
+This is the finding worth reading the transcripts for. Neither disagreement was the LLM catching something the expert missed:
+
+1. **`snake-to-camel` (easy, edge_cases).** The LLM suite asserted `to_camel("_leading") == "Leading"`. The solution returned `"leading"`. The prompt never specified how a leading underscore should be treated, so the LLM picked a behavior, wrote it as an assertion, and failed correct code against it.
+2. **`lru-cache` (hard, refactor).** The LLM wrote 13 tests where the expert wrote 5, and one errored outright with `KeyError: 'dictionary is empty'`, testing a scenario the spec never defined.
+
+**The pattern: `llm_stricter` here means over-constraint, not extra rigor.** When a spec is ambiguous, an LLM writing tests does not flag the ambiguity, it resolves the ambiguity silently and then enforces its private resolution as though it were the requirement. The failure is a false negative (rejecting correct work), which is the opposite direction of the failure mode this project was built to warn about.
+
+Both diagnoses point at the same root cause: **the task prompt is under-specified**, and the expert suite quietly compensated because the same person wrote both. That is a real defect in the tasks that only surfaced because a second, independent author was asked to write tests from the prompt alone. **An LLM-authored suite is a usable spec-ambiguity detector even when it is a bad grader.**
+
+## What the demo data got wrong
+
+The seeded demo data was built before any real run existed, to make the dashboard demonstrable without an API key. Running the real thing contradicted it on the central point.
+
+| | Seeded demo (`claude-sonnet-4-6`) | Real run (`claude-sonnet-5`) |
 |---|---|---|
-| easy | 5/5 | 100% |
-| medium | 6/7 | 86% |
-| **hard** | **1/3** | **33%** |
+| pass@1 | 13/17 (76%) | **17/17 (100%)** |
+| `llm_missed` | 3 | **0** |
+| `llm_stricter` | 0 | **2** |
+| Overall agreement | 82.4% | 88.2% |
+| `edge_cases` band | `unsafe` (0.50) | `supervised` (0.75) |
 
-**The cliff is at `hard`.** Easy and medium are nearly saturated; the differentiating signal lives entirely in hard, multi-step, stateful tasks. *Implication for an eval roadmap: invest new tasks at the hard tier, because easy tasks no longer discriminate between model versions.*
+The demo was seeded to dramatize `llm_missed`, LLM-written tests waving through broken code. **The real run produced zero of those and two of the opposite.** The direction of the error inverted.
 
-## Pass rate by category
+The thesis survives (do not let an LLM decide pass or fail, because its verdict disagreed with the expert's on 2 of 17 solutions) but the *reason* changed, and a reader who only saw the demo would have learned the wrong failure mode. This is recorded rather than quietly overwritten, because the gap between plausible seeded data and one real run is the entire argument for running the real thing.
 
-| Category | Pass | Rate |
+## The eval infrastructure cost more than the eval
+
+| Spend | Tokens | Cost |
 |---|---|---|
-| bug_fix | 2/2 | 100% |
-| algo | 4/4 | 100% |
-| feature_add | 3/4 | 75% |
-| edge_cases | 2/3 | 67% |
-| **refactor** | **1/2** | **50%** |
+| Running the agent on 17 tasks | 83,629 (77,795 in / 5,834 out) | $0.321 |
+| Authoring the LLM test suites | 47,786 (21,735 in / 26,051 out) | **$0.456** |
 
-`refactor` is the weakest category, consistent with the failure modes below (refactors are where you "fix one thing and break another").
+Authoring the suites used **36% of the tokens but 59% of the spend.** Generating tests is output-heavy (26,051 output tokens versus 5,834 for the entire eval), and output bills at 5x input, so the cost profile inverts against the token profile.
 
-## Top 3 capability gaps observed
+**Practical consequence:** cache and version generated suites as artifacts instead of regenerating them per run. Under the current design, adding a second model to compare against re-pays the authoring cost with no new information, since the suites do not depend on which model is being evaluated.
 
-1. **Stateful and temporal logic (wrong_approach).** The token-bucket rate limiter failed: the agent tracked elapsed time but *reset the bucket to full* on each call instead of accruing fractional tokens, so the refill-cap and sequence cases broke. Agents handle pure functions well but stumble on **state that evolves across calls**.
-2. **Fix-one-break-another (regression).** The LRU cache failed: the agent correctly added recency refresh on `get` but **forgot to refresh on update**, breaking a previously-passing case. The happy path looked solved; a hidden invariant regressed. This is the failure humans miss most in review.
-3. **Incomplete edge-case coverage (missed_edge_case).** Word-count failed: casing was handled but **trailing punctuation stripping was not**, so `cat,` and `cat` counted separately. Classic "handled what the prompt said, missed what it implied."
+## Concrete, evidence-backed next steps
 
-## Run comparison: baseline → v2-prompt
+1. **Add repo-level and multi-file tasks (Horizon 1) before running another comparison.** At 17/17 the instrument has no resolution left; another run against another model would produce two indistinguishable 100% scores. Nothing else on the roadmap matters until this is fixed.
+2. **Treat `llm_stricter` as a spec-review queue.** Both disagreements traced to prompts that failed to state a behavior (`_leading` underscores, undefined cache states). Route every `llm_stricter` result to a prompt review: either the spec gets the missing sentence, or the expert suite gets the missing assertion. This turns a grading disagreement into task maintenance, which is a better use for it than a trust score.
+3. **Stop regenerating test suites per run.** Version them as artifacts, keyed by task and generator model. This removes 59% of current spend from every subsequent run.
+4. **Do not ship a judge-calibration claim at this sample size.** No category reached `autonomous`; the overall interval spans 65.7% to 96.7%. Reaching n >= 10 per category needs roughly 50 tasks, and that expansion should ride along with step 1 rather than run as separate work.
+5. **Record Layer 3 outcomes on the next run.** `metricLayers.outcome` is null here because no human acceptance data was recorded, so the cross-layer matrix (the `passedButRejected` cell) has nothing to show. On a saturated suite where every task passes, human acceptance is the only remaining axis that can still register a negative.
 
-Adding an explicit "enumerate the edge cases before you code, and re-run the full suite after each change" instruction:
-- **Fixed (fail→pass):** word-count, token-bucket, lru-cache (the edge-case + regression failures).
-- **Regressed (pass→fail):** roman-numerals. The agent over-applied a string-replace shortcut and emitted `IM` for 999. **A prompt change that helped overall still caused a regression**, which is exactly the signal a PM must catch before shipping. Net change is +2 tasks, but ship review should ask whether the roman-numerals regression is acceptable.
-
-## 3 concrete, evidence-backed improvement ideas
-
-1. **Add a forced self-review turn before "done."** Two of the three failures (the LRU regression and the word-count edge case) were *near-misses* the agent could have caught by re-reading the spec and re-running the full suite. A harness or prompt convention that requires "list the edge cases, then verify all pass" is cheap and directly targets the two most common failure tags. (v2 demonstrates both the upside and the regression risk to watch.)
-2. **Give the agent a scratchpad for state machines.** The token-bucket failure suggests agents reason poorly about evolving state in their head. Prompting an explicit "write the state-transition table first" step should lift the hard/stateful tier where the discriminating signal lives.
-3. **Weight the suite toward `hard` and `refactor`.** Easy and medium are saturated (100% and 86%) and no longer separate model versions. To keep the eval *sensitive* to future changes, the roadmap should add hard, multi-file-flavored, and refactor tasks: the two segments where the pass rate sits at 33 to 50% and movement is measurable.
-
-*These double as interview material: each is an articulated, evidence-backed improvement idea tied to a specific transcript and failure tag.*
+*Each of these traces to a specific number in the run file rather than an intuition about what ought to be true, which is the standard the project sets for itself and the reason the demo-versus-real correction above is documented instead of erased.*

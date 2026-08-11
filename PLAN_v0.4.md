@@ -1,7 +1,34 @@
 # ForwardEval v0.4 - "Closing the loop"
 
-**Status:** planned
-**Current shipped version:** 0.3.0 (Claude 5 family support, test authorship comparison)
+**Status:** shipped in 0.4.0 ([PR #2](https://github.com/johnaantony/forwardeval/pull/2), merged 2026-07-28)
+**Current shipped version:** 0.4.0
+
+> This document is kept as written, as a record of what was planned before the work started. The section immediately below records what actually shipped and where reality diverged from the plan. Everything from "The through-line" onward is the original plan text, unedited.
+
+---
+
+## Outcome: what shipped, and what the first real run changed
+
+All four capabilities shipped, and every item in the definition of done was met.
+
+| Planned | Shipped | Note |
+|---|---|---|
+| Judge calibration, Wilson CI, per-category bands | yes | `report.ts`, `types.ts`, dashboard tab renamed |
+| Calibration drift in Run Comparison | yes | |
+| L2 behavior stats from existing transcripts | yes | `behavior.ts`, no new inputs required |
+| L3 outcomes sidecar + cross-layer matrix | yes | `scripts/outcome.mjs`, `outcomes.json` |
+| Session capture with human ratification gate | yes | `harness/src/capture.ts`, `npm run capture` |
+| Two captured tasks promoted | yes | `slugify-url-handles`, `retry-with-backoff`; suite is now 17 |
+| Demo shows all three with no API key | yes | `passedButRejected` = 1, one `unsafe` band, 2 captured tasks |
+| README "What's new in 0.4", closed-loop diagram, CHANGELOG, EVAL_DESIGN methodology | yes | all six comprehension items |
+
+**Where the plan was wrong.** The plan's honest-limit section anticipated the risk of over-claiming from small samples, and that held up. What it did not anticipate is the direction of the error the real data would show.
+
+The plan assumed `llm_missed` (LLM-authored tests passing code an expert suite catches) was the failure mode worth instrumenting, and the seeded demo data was built to dramatize it with 3 such cases. The first real run produced **`llm_missed` = 0 and `llm_stricter` = 2**: the LLM suites never waved through broken code, and twice they failed correct code by inventing a requirement the prompt never stated. The layer was worth building, but the story it tells is the opposite of the one the plan expected.
+
+The run also revealed something outside the plan's scope entirely: at 17/17 pass@1 on `claude-sonnet-5`, **the suite saturates and no longer discriminates between models**. That makes Horizon 1 (repo-level, multi-file tasks) the blocking priority rather than a later nice-to-have.
+
+Full numbers and analysis: [FINDINGS.md](FINDINGS.md).
 
 ---
 
