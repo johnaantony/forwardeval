@@ -189,7 +189,25 @@ export function TestAuthorship({ run }: { run: RunResult }) {
             On <span className="font-semibold text-fail">{ta.llmMissed}</span> of {ta.comparedTasks}{" "}
             compared tasks, the LLM-authored suite <span className="text-fail">passed a solution the
             expert's suite caught as wrong</span>. An LLM-only test process would have shipped those
-            with false confidence. Verdict for this run came from the{" "}
+            with false confidence.
+            {ta.llmStricter > 0 && (
+              <>
+                {" "}On <span className="font-semibold text-warn">{ta.llmStricter}</span> more it went
+                the other way and failed a solution the expert's suite passed.
+              </>
+            )}{" "}
+            Verdict for this run came from the <span className="font-mono">{ta.verdictSource}</span>{" "}
+            suite.
+          </p>
+        ) : ta.llmStricter > 0 ? (
+          <p className="text-sm text-slate-300">
+            On this run the LLM-authored suite never passed a solution the expert's suite caught as
+            wrong. It disagreed in the other direction: on{" "}
+            <span className="font-semibold text-warn">{ta.llmStricter}</span> of {ta.comparedTasks}{" "}
+            compared tasks it <span className="text-warn">failed a solution the expert's suite
+            passed</span>. That is usually over-constraint, not extra rigor: the LLM filled in a
+            behavior the task prompt left unspecified, then tested its own answer. Treat these as a
+            spec-review queue. Verdict for this run came from the{" "}
             <span className="font-mono">{ta.verdictSource}</span> suite.
           </p>
         ) : (
