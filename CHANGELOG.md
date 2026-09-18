@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased - 0.5.0 "Say it once, then prove it against something hard"
+
+Design doc: [PLAN_v0.5.md](PLAN_v0.5.md).
+
+- **The project explains itself.** One sentence now leads the README, the dashboard header and the page metadata: real tests decide pass or fail, an LLM never does, and every result is priced. "Who it's for" drops from eight audiences to two, and a **What one real run found** section puts a result before the architecture.
+- **Start here panel** on the Overview: the three findings from the loaded run, each linking to the view that proves it. Derived from the run data, not hard-coded, so it stays true when the numbers change.
+- **Hash routing** (`#overview`, `#tasks`, `#authorship`, `#compare`) so a link opens on the finding it is about.
+- **Demo runs no longer masquerade as results.** Real runs are the default, demo runs sit behind a toggle, and comparing a demo run against a live one now says plainly that the difference is not a measured improvement.
+
 ## 0.4.0 - Closing the loop
 
 The release theme: find where the metric says green when the truth is red, then let reality correct the suite. Design doc: [PLAN_v0.4.md](PLAN_v0.4.md).
