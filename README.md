@@ -1,36 +1,40 @@
 # ForwardEval
 
-**Measure what the agent actually does: task by task, turn by turn.**
+**ForwardEval tells you whether a coding agent's change is ready to ship: real tests decide pass or fail, an LLM never does, and every result is priced.**
 
-**Live dashboard:** https://johnaantony.github.io/forwardeval/ (renders committed sample runs)
+**Live dashboard:** https://johnaantony.github.io/forwardeval/
 
-ForwardEval is an **agentic coding-evaluation harness** plus a **results dashboard**. It runs a coding agent (Claude, via the Anthropic API with tool use) against a suite of small, real-world-style coding tasks. It verifies each result with **deterministic tests**, captures the full agent transcript, classifies *why* failures happen, and visualizes performance across four lenses: overall, by category, across runs, and **per token spent**.
+It runs a coding agent (Claude, via the Anthropic API with tool use) against a suite of real-world-style coding tasks, verifies each result with **deterministic tests**, captures the full agent transcript, classifies *why* failures happen, and prices every result in tokens and dollars.
 
-It exists to answer the one question every team shipping an LLM coding feature has to answer: *did this change actually make the model better at writing code, and at what cost?*
+Built for **forward-deployed engineers**: you ship AI-written code into a customer's stack on a deadline, and you need to prove it works before they do.
 
-> Built as a portfolio artifact for evaluation-focused product and engineering work. The design choices below are the point: they demonstrate eval judgment, not just code.
+## What one real run found
+
+The first live run (17 tasks, `claude-sonnet-5`, 2026-07-28, [full write-up](FINDINGS.md)) produced three findings, and the uncomfortable one is the headline:
+
+1. **The suite is saturated: 17/17 pass@1.** A perfect score is not a good benchmark result, it is the end of a benchmark's useful life. This suite can no longer tell two frontier models apart, which is why harder repo-level tasks are the next release and not a someday item.
+2. **The LLM-authored test suites were stricter, not laxer.** The metric this project was built to warn about (`llm_missed`: model-written tests waving through code an expert suite catches) came back **zero**. Instead, twice the model invented a requirement the prompt never stated and failed correct code. Both cases traced back to an under-specified prompt, which makes an LLM-authored suite a usable **spec-ambiguity detector** even when it is a bad grader.
+3. **Writing the tests cost more than running the eval.** Authoring the LLM suites was 36% of the tokens but **59% of the spend**, because generating tests is output-heavy and output bills at 5x input.
+
+Finding 2 contradicts what this project claimed before the run. The correction is published rather than quietly edited, because the gap between plausible seeded data and one real run is the entire argument for running the real thing.
 
 ## Who it's for
 
-ForwardEval is useful to anyone who ships, or depends on, AI-written code and needs an honest answer to "does it work, and did this change make it better?"
+**Forward-deployed engineers, first.** You drop into a customer, build fast against their stack, and have to prove two things on a deadline: that the code works, and that today's change did not break what you shipped yesterday. ForwardEval is that proof, packaged, and it runs on your laptop against your own tests.
 
-- **Forward Deployed Engineers.** You drop into a customer, build an agent or a feature fast, and have to prove two things on a deadline: that it works, and that each new change did not break the last one. ForwardEval is that proof, packaged.
-- **Model Performance and Evaluation PMs / researchers.** Owners of the "is this model or agent change ready to ship?" decision, who live in pass rates, regressions, and capability gaps.
-- **AI and applied-AI engineers** building coding agents or LLM features, who need a regression net as they iterate.
-- **ML and research engineers** designing or running task suites and benchmarks.
-- **Platform and infrastructure engineers** embedding LLMs into a product and needing a release gate for agent quality.
-- **QA, release, and DevEx engineers** who want AI-generated changes verified before they merge.
-- **AI product managers** translating eval signal into roadmap and ship decisions.
-- **Solutions and sales engineers** who need to show, with evidence, that a deployed solution creates measurable value.
+It does the same job for anyone else who ships, or depends on, AI-written code:
 
-What they all get:
+- **Teams building coding agents**, who need a regression net as they iterate and a release gate that is not an opinion.
+- **Eval and model-performance owners**, who make the "is this model or agent change ready to ship?" call and live in pass rates, regressions, and capability gaps.
+
+What you get:
 
 - **Did the agent actually solve the task?** Real tests decide, not an opinion and not another LLM.
 - **Did this change regress anything?** One screen lists every task that flipped from pass to fail.
 - **Is it worth the spend?** Every result is priced in tokens and dollars, so you see accuracy *per dollar*, not just accuracy.
 - **Where does it break, and why?** Open any task for the full turn-by-turn transcript and a plain-English failure reason.
 
-It is local, free, and has no vendor lock-in. Point it at the toy task suite included here, or at your own repository's test suite.
+It is local, free, and has no vendor lock-in. Point it at the task suite included here, or at your own repository's test suite.
 
 ---
 
@@ -264,6 +268,8 @@ In the bundled demo run, the LLM-authored suites pass two solutions the expert s
 ## Roadmap
 
 The roadmap to **real SWE-bench**, and the **Layer 2 vision** (the eval also recommending the product events to instrument, so you can measure whether shipped code is *valuable to customers* and not merely correct), lives in [ROADMAP.md](ROADMAP.md). Layer 2 is the part almost nobody else can credibly build.
+
+The next release is planned in [PLAN_v0.5.md](PLAN_v0.5.md): repo-level multi-file tasks with SWE-bench's `fail_to_pass` / `pass_to_pass` contract (so the suite discriminates again), multi-model runs with cost per solve, and ingesting real agent sessions instead of only benchmark tasks.
 
 ## Deploy
 
