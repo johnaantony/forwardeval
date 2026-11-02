@@ -8,6 +8,8 @@ It runs a coding agent (Claude, via the Anthropic API with tool use) against a s
 
 Built for **forward-deployed engineers**: you ship AI-written code into a customer's stack on a deadline, and you need to prove it works before they do.
 
+**Voice agents too:** [TurnEval](https://github.com/johnaantony/turneval) applies the same rule to phone calls: the verdict comes from the record the agent changed, never the transcript. On its first real call it caught an agent that said "booked" and wrote the wrong year. Its runs export to this dashboard's format.
+
 ## What one real run found
 
 The first live run (17 tasks, `claude-sonnet-5`, 2026-07-28, [full write-up](FINDINGS.md)) produced three findings, and the uncomfortable one is the headline:
@@ -273,4 +275,4 @@ The next release is planned in [PLAN_v0.5.md](PLAN_v0.5.md): repo-level multi-fi
 
 ## Deploy
 
-Run `cd dashboard && npm run build`, then deploy `dashboard/dist` to Vercel or GitHub Pages. Setting `base: "./"` makes the build portable to either. A GitHub Actions workflow for Pages is included.
+Run `cd dashboard && npm run build`, then deploy `dashboard/dist` to any static host. Setting `base: "./"` makes the build portable across hosts. A GitHub Actions workflow for GitHub Pages is included.
