@@ -2,6 +2,9 @@
 
 **ForwardEval tells you whether a coding agent's change is ready to ship: real tests decide pass or fail, an LLM never does, and every result is priced.**
 
+> [!TIP]
+> **New here? Start with the [Runbook](RUNBOOK.md).** Eight steps from a 10-minute first look to a ship decision you can defend, written for forward-deployed engineers and PMs. Once installed, `node scripts/runbook.mjs` shows which steps you have done and the exact command to run next.
+
 **Live dashboard:** https://johnaantony.github.io/forwardeval/
 
 It runs a coding agent (Claude, via the Anthropic API with tool use) against a suite of real-world-style coding tasks, verifies each result with **deterministic tests**, captures the full agent transcript, classifies *why* failures happen, and prices every result in tokens and dollars.
@@ -108,6 +111,8 @@ flowchart LR
 ---
 
 ## Quickstart
+
+Prefer a guided path? The [Runbook](RUNBOOK.md) walks these same commands as eight steps, with what counts as done for each.
 
 Prereqs: Node 18+, Python 3.9+ (`python3` on PATH), and an Anthropic API key.
 

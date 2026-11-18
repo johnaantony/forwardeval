@@ -5,7 +5,7 @@ import { Overview } from "./components/Overview";
 import { TaskExplorer } from "./components/TaskExplorer";
 import { Comparison } from "./components/Comparison";
 import { TestAuthorship } from "./components/TestAuthorship";
-import { TabIntro, Tour, TourLauncher, tourAlreadyTaken } from "./components/Onboarding";
+import { RunbookLink, TabIntro, Tour, TourLauncher, tourAlreadyTaken } from "./components/Onboarding";
 
 const TABS = ["overview", "tasks", "authorship", "compare"] as const;
 export type Tab = (typeof TABS)[number];
@@ -98,6 +98,7 @@ export default function App() {
             Is this coding agent's change ready to ship? Real tests decide pass or fail, an LLM never
             does, and every result is priced.
           </p>
+          <RunbookLink />
         </div>
         {visible.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-sm">
