@@ -61,7 +61,7 @@ v0.5 asks the question one step earlier: **can a stranger tell what this measure
 
 **What ships.**
 
-- `npm run ingest -- --format claude-code|otel --path <file-or-dir>`, with two adapters onto the existing tool-neutral session contract: Claude Code session logs (real data available immediately) and OpenTelemetry GenAI spans (the format LangSmith, Langfuse, Datadog and LiveKit already emit).
+- `npm run ingest -- --format claude-code|otel --path <file-or-dir>`, with two adapters onto the existing tool-neutral session contract: Claude Code session logs (real data available immediately) and OpenTelemetry GenAI spans (the format most tracing and observability tools already emit).
 - The three layers, applied to ingested sessions: L1 deterministic checks (did tests run, were they green at the end, was anything edited after the last green run - "claimed done without checking"), L2 from the existing `deriveBehavior()`, L3 from the existing outcomes sidecar, inferred from commit-or-revert where a git repo is available.
 - A **Production** tab: sessions ranked by how badly they went, each with a reason, reusing the transcript viewer.
 - A promote path from a bad session into the existing capture flow, keeping its human-ratification gate. This is v0.4's loop, fed by reality instead of by a hand-written JSON file.
