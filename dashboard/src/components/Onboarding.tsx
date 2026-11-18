@@ -13,6 +13,22 @@ import { fmtCost, fmtTokens } from "../lib";
  * hard-coded numbers, no claims the data does not support.
  */
 
+/** Where a first-time reader should start: eight steps, each with what counts as done. */
+export const RUNBOOK_URL = "https://github.com/johnaantony/forwardeval/blob/main/RUNBOOK.md";
+
+export function RunbookLink() {
+  return (
+    <a
+      href={RUNBOOK_URL}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-flex items-center rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/20"
+    >
+      New here? Start with the Runbook: eight steps from first look to a ship decision
+    </a>
+  );
+}
+
 /** localStorage is a convenience here, never a correctness dependency. */
 function readFlag(key: string): boolean {
   try {
@@ -238,7 +254,11 @@ export function HowItWorks() {
           <p className="mt-3 text-xs text-slate-400">
             <strong className="text-slate-300">Your three moves:</strong> run it against your own
             repo, read the tasks that failed, then compare the new run with the last one before you
-            ship.
+            ship. The{" "}
+            <a href={RUNBOOK_URL} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+              Runbook
+            </a>{" "}
+            walks every step.
           </p>
         </>
       )}
